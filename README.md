@@ -3,14 +3,15 @@
 Versioned contract artifacts and compatibility history for the ECommerceStore applications.
 The delivery plan is in [TECHNICAL_TODO.md](TECHNICAL_TODO.md).
 
-## Current implementation: PACT/01-03
+## Current implementation: PACT/01-04
 
 ASP.NET Core 10 Minimal API, MongoDB configuration and bounded readiness checks,
 generated OpenAPI, ProblemDetails, local Compose and a GitHub Actions quality gate.
 Immutable application versions and directed consumer/provider integrations can now be
 registered and read from MongoDB. Immutable OpenAPI/Pact artifacts and publication provenance
-are stored separately and downloaded byte-for-byte. Verification ingestion and compatibility
-decisions are subsequent backlog tasks; an accepted upload is not a passing contract test.
+are stored separately and downloaded byte-for-byte. Provider CI can append immutable verification
+reports with structured diagnostics and retrieve their history. Compatibility selection is PACT/06;
+an accepted contract upload is not a passing test.
 
 | Endpoint | Behavior |
 | --- | --- |
@@ -25,6 +26,9 @@ decisions are subsequent backlog tasks; an accepted upload is not a passing cont
 | `GET /api/contract-publications/{id}` | Read a publication and its source/integration/artifact references. |
 | `GET /api/artifacts/{sha256}` | Read immutable artifact metadata. |
 | `GET /api/artifacts/{sha256}/content` | Download original bytes, with hash ETag and attachment filename. |
+| `POST /api/verification-runs` | Append a provider CI report; 201 new execution, 200 equivalent retry, 409 changed report for the same execution. |
+| `GET /api/verification-runs/{id}` | Read the original report and diagnostics. |
+| `GET /api/verification-runs?consumerApplicationId=...&providerApplicationId=...&contractSha256=...` | Bounded history for an explicit integration and Pact hash; optional `limit` (1-100) and `after` cursor. |
 
 Health responses expose dependency statuses, never connection strings or driver
 exceptions. Unmatched routes return `application/problem+json` with a `traceId`.
@@ -91,6 +95,73 @@ and an `ApplicationIds` array, e.g. `payments` for that service's CI. The local 
 uses `*` to manage the local demo. Publisher ID comes from authentication, not the request body.
 Use secret injection for token hashes in deployed configuration; keep bearer tokens in CI secrets.
 
+## Ingest verification reports
+
+Provider CI executes official Pact tooling and posts a normalized report using a token scoped
+to the **provider** application. Register both versions and publish the consumer Pact first.
+The registry validates references, coverage counts and diagnostics; it trusts authorized CI's
+reported execution. Real source-repository verifier integration is PACT/08-09.
+
+Example `POST /api/verification-runs` (replace publication ID, commits, hashes and tool version
+with the exact values used by CI):
+
+```json
+{
+  "consumerPublicationId": "11111111-1111-1111-1111-111111111111",
+  "consumerApplicationId": "payments",
+  "consumerCommitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "providerApplicationId": "invoice",
+  "providerCommitSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "contractSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "verifierName": "pact-core",
+  "verifierVersion": "<exact installed version>",
+  "configurationSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "ciRunId": "123",
+  "ciAttempt": 1,
+  "ciCheckId": "pact/orders",
+  "sourceRef": "refs/heads/main",
+  "buildUrl": "https://github.com/MichalBoczula/ECommerceStoreInvoice/actions/runs/123",
+  "status": "Failed",
+  "verifiedInteractions": 0,
+  "failedInteractions": 1,
+  "summary": "Missing required response field",
+  "issues": [{
+    "kind": "Mismatch",
+    "code": "missing_body_field",
+    "message": "Expected totalAmount",
+    "interaction": "read an order",
+    "method": "GET",
+    "path": "/orders/123",
+    "jsonPath": "$.body.totalAmount",
+    "expected": 12.34,
+    "actualPresent": false
+  }],
+  "evidenceUrls": [],
+  "startedAt": "2026-01-01T00:00:00Z",
+  "finishedAt": "2026-01-01T00:00:01Z"
+}
+```
+
+`verifiedInteractions` counts successful interactions; `failedInteractions` counts mismatched
+interactions. The registry derives `expectedInteractions` from the immutable Pact. Passed
+requires complete success and no issues. Failed requires mismatch diagnostics. Error requires
+an `ExecutionError` issue and can preserve partial mismatches. Unverified requires zero completed
+interactions, no issues and a summary explaining why execution was not attempted.
+
+A mismatch includes the Pact interaction description, HTTP operation, JSON path, expected JSON
+value and `actualPresent`. For a missing value, use false and omit `actual`; for explicit JSON
+null, use true and `"actual": null`. JSON numbers retain precision. Evidence URLs use HTTPS
+without credentials or query parameters; log fragments are allowed. Do not publish secrets in
+reports; reads are public. The complete report is limited to 1 MiB, with at most 100 issues,
+10 evidence URLs and 8 KiB per expected/actual JSON value.
+
+The same CI run + attempt + check for a version pair/binding/hash is retry-stable. A changed
+report returns 409. A new run, attempt or check records another execution without replacing
+history. Supply fixed original execution timestamps when retrying; do not regenerate them.
+History pages use ascending record IDs, not time or compatibility priority; `nextCursor` is
+passed as `after`. With concurrent inserts, restart traversal to include earlier-sorted new IDs.
+See [ADR-0003](docs/adr/0003-verification-runs.md) for identities and status rules.
+
 ## Run locally
 
 Requires Docker with Compose:
@@ -131,7 +202,7 @@ bash scripts/verify.sh
 The same scripts run in CI: locked restore with high/critical NuGet audit failures,
 source/architecture checks, formatting, build, Domain/Application/Infrastructure/HTTP
 tests, real MongoDB concurrency/index/publication tests and an authenticated Docker Compose
-smoke covering immutable publication and exact-byte content retrieval.
+smoke covering immutable publication, exact-byte content retrieval and synthetic report ingestion/history.
 Reports are under `artifacts/`. The integration fixture starts
 MongoDB 8 through Testcontainers. Alternatively, set `PACT_TEST_MONGODB` to a local
 test MongoDB connection; this does not skip the actual database check.

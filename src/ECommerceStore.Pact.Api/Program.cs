@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using ECommerceStore.Pact.Api.Verification;
+using ECommerceStore.Pact.Application.Verification;
 using ECommerceStore.Pact.Api.Health;
 using ECommerceStore.Pact.Api.Contracts;
 using ECommerceStore.Pact.Api.Security;
@@ -35,7 +37,7 @@ builder.Services.AddOpenApi(options =>
         {
             Title = "ECommerceStore Pact Registry",
             Version = "v1",
-            Description = "Immutable contract artifacts, source versions and publication provenance. Upload acceptance is not verification evidence."
+            Description = "Immutable contract artifacts, source versions, publication provenance and provider CI reports. Upload acceptance is not verification evidence."
         };
         document.Components ??= new OpenApiComponents();
         document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
@@ -54,6 +56,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ApplicationVersionService>();
 builder.Services.AddScoped<IntegrationService>();
 builder.Services.AddScoped<ContractPublicationService>();
+builder.Services.AddScoped<VerificationRunService>();
 builder.Services.AddSingleton<IValidateOptions<RegistryAuthOptions>, RegistryAuthValidator>();
 builder.Services.AddOptions<RegistryAuthOptions>().Bind(builder.Configuration.GetSection("RegistryAuth")).ValidateOnStart();
 builder.Services.AddAuthentication(PublisherAuthenticationHandler.SchemeName)
@@ -71,6 +74,7 @@ app.UseAuthorization();
 app.MapOpenApi();
 app.MapRegistryEndpoints();
 app.MapContractEndpoints();
+app.MapVerificationEndpoints();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = _ => false,

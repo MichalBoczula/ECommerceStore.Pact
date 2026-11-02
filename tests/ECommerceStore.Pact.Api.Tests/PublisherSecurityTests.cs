@@ -14,6 +14,7 @@ public sealed class PublisherSecurityTests(RegistryApiFactory factory) : IClassF
     [InlineData("/api/applications/payments/versions")]
     [InlineData("/api/integrations")]
     [InlineData("/api/contract-publications")]
+    [InlineData("/api/verification-runs")]
     public async Task EveryWriteRequiresAuthenticationBeforeReadingTheBody(string path)
     {
         using var client = factory.CreateClient();

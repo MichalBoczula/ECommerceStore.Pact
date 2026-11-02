@@ -87,5 +87,41 @@ with urlopen(base_url + published['contentUrl'], timeout=10) as download:
 status, _, conflict = call('/api/contract-publications', {**publication, 'contentBase64': base64.b64encode(raw + b'\n').decode()})
 assert status == 409 and conflict['code'] == 'contract_content_conflict', (status, conflict)
 (folder / 'publication.json').write_text(json.dumps(published, indent=2))
-print('Container smoke passed: protected writes, registration, immutable publication and exact-byte content download.')
+# Synthetic report-ingestion smoke only: official provider verification belongs to source CI.
+invoice_repo = 'https://github.com/MichalBoczula/ECommerceStoreInvoice'
+status, _, _ = call('/api/applications/invoice/versions', {'commitSha': 'd' * 40, 'repositoryUrl': invoice_repo})
+assert status == 201, status
+pact = {'consumer': {'name': 'payments'}, 'provider': {'name': 'invoice'},
+        'interactions': [{'description': 'read an order', 'request': {'method': 'GET', 'path': '/orders/123'},
+                          'response': {'status': 200, 'body': {'totalAmount': 12.34}}}],
+        'metadata': {'pactSpecification': {'version': '3.0.0'}}}
+status, _, consumer = call('/api/contract-publications', {**publication, 'kind': 'ConsumerPact',
+    'consumerApplicationId': 'payments', 'providerApplicationId': 'invoice',
+    'contentBase64': base64.b64encode(json.dumps(pact).encode()).decode()})
+assert status == 201, (status, consumer)
+report = {'consumerPublicationId': consumer['id'], 'consumerApplicationId': 'payments', 'consumerCommitSha': 'c' * 40,
+          'providerApplicationId': 'invoice', 'providerCommitSha': 'd' * 40, 'contractSha256': consumer['artifactSha256'],
+          'verifierName': 'synthetic-smoke', 'verifierVersion': '1', 'configurationSha256': 'e' * 64,
+          'ciRunId': '1', 'ciAttempt': 1, 'ciCheckId': 'report-ingestion', 'sourceRef': 'refs/heads/main',
+          'buildUrl': invoice_repo + '/actions/runs/1', 'status': 'Failed', 'verifiedInteractions': 0, 'failedInteractions': 1,
+          'summary': 'Synthetic missing field', 'issues': [{'kind': 'Mismatch', 'code': 'missing_field', 'message': 'Missing totalAmount',
+          'interaction': 'read an order', 'method': 'GET', 'path': '/orders/123', 'jsonPath': '$.body.totalAmount',
+          'expected': 12.34, 'actualPresent': False}], 'evidenceUrls': [],
+          'startedAt': '2026-01-01T00:00:00Z', 'finishedAt': '2026-01-01T00:00:01Z'}
+status, headers, failed = call('/api/verification-runs', report)
+assert status == 201 and failed['expectedInteractions'] == 1, (status, failed)
+failed_location = headers['Location']
+status, _, retry = call('/api/verification-runs', report)
+assert status == 200 and retry == failed, (status, retry)
+passed_report = {**report, 'status': 'Passed', 'verifiedInteractions': 1, 'failedInteractions': 0, 'issues': [], 'summary': 'Synthetic passed run'}
+status, _, conflict = call('/api/verification-runs', passed_report)
+assert status == 409 and conflict['code'] == 'verification_execution_conflict', (status, conflict)
+status, _, passed = call('/api/verification-runs', {**passed_report, 'ciAttempt': 2})
+assert status == 201 and passed['id'] != failed['id'], (status, passed)
+status, _, historical = call(failed_location, authenticate=False)
+assert status == 200 and historical == failed, (status, historical)
+status, _, page = call('/api/verification-runs?consumerApplicationId=payments&providerApplicationId=invoice&contractSha256=' + consumer['artifactSha256'], authenticate=False)
+assert status == 200 and len(page['items']) == 2, (status, page)
+(folder / 'verification-runs.json').write_text(json.dumps(page, indent=2))
+print('Container smoke passed: protected writes, immutable publication, exact-byte download and append-only report history.')
 PY
