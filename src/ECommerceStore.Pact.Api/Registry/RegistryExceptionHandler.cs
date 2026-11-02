@@ -1,4 +1,5 @@
 using ECommerceStore.Pact.Application;
+using ECommerceStore.Pact.Application.Verification;
 using ECommerceStore.Pact.Application.Contracts;
 using ECommerceStore.Pact.Domain;
 using Microsoft.AspNetCore.Diagnostics;
@@ -20,6 +21,14 @@ public sealed class RegistryExceptionHandler : IExceptionHandler
                 Detail = "This application and commit are already registered with different repository or image metadata.",
                 Extensions = { ["code"] = "application_version_metadata_conflict" }
             },
+            VerificationConflictException => new ProblemDetails
+            {
+                Status = 409,
+                Title = "Immutable verification report conflict.",
+                Detail = "This CI run, attempt and check already has a different report for this version pair and contract.",
+                Extensions = { ["code"] = "verification_execution_conflict" }
+            },
+            RegistryRequestTooLargeException => new ProblemDetails { Status = 413, Title = "Verification report too large.", Detail = "The JSON report envelope is limited to 1 MiB." },
             RegistryUnavailableException => new ProblemDetails { Status = 503, Title = "Registry storage unavailable." },
             ContractConflictException => new ProblemDetails
             {

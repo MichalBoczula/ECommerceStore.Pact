@@ -18,6 +18,9 @@ to its backlog item. Commits, code, documentation and PR descriptions are in Eng
   must not bypass limits. Supported JSON profiles are documented in ADR-0002.
 - Preserve immutable version/artifact identities and append-only verification history.
   Never use upload order or an unqualified latest version as a compatibility decision.
+- Verification writes are owned by the provider. Keep CI execution identity separate from
+  report fingerprint, preserve reruns and distinguish infrastructure Error from Failed.
+  Derive expected interaction count from the bound Pact, never caller-supplied totals.
 - Use official Pact tooling in consumer/provider CI; do not implement a parallel matching engine.
 - Keep consumer requirements independent from provider-generated expectations. Tests must
   execute existing production adapters and real generated-client serialization.
