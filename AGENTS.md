@@ -29,6 +29,10 @@ to its backlog item. Commits, code, documentation and PR descriptions are in Eng
   execution selectors. Require every configured check; never select a later upload or arbitrary run.
   Preserve decision policy, row/matrix outcomes and evidence as immutable snapshots. Missing or
   inapplicable evidence is Unverified; only complete Passed matrices are compatible.
+- Publish only the archived image that passed the container smoke and vulnerability scan,
+  after the quality gate succeeds on main. Preserve source/image identity and immutable receipts.
+  Azure deployment uses the existing Terraform root/state; distinguish mocked configuration
+  validation from actual publication, apply and hosted readiness evidence.
 - Use official Pact tooling in consumer/provider CI; do not implement a parallel matching engine.
 - Keep consumer requirements independent from provider-generated expectations. Tests must
   execute existing production adapters and real generated-client serialization.

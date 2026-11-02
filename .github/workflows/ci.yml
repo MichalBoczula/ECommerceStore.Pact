@@ -62,8 +62,55 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - name: Build and smoke test API with MongoDB
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the candidate image once
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          platforms: linux/amd64
+          tags: ecommerce-store-pact:ci
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+      - name: Smoke test the candidate image with MongoDB
+        env:
+          PACT_IMAGE: ecommerce-store-pact:ci
+          PACT_IMAGE_PREBUILT: "true"
         run: bash scripts/ci.sh container
+      - name: Scan the tested image for fixed high/critical vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ecommerce-store-pact:ci
+          scanners: vuln
+          format: json
+          output: artifacts/container/trivy.json
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+      - name: Record the tested and scanned image identity
+        env:
+          EXPECTED_IMAGE_ID: ${{ steps.image.outputs.imageid }}
+        run: |
+          mkdir -p artifacts/image
+          docker image inspect ecommerce-store-pact:ci > "$RUNNER_TEMP/image-inspect.json"
+          python3 scripts/image-metadata.py record --inspect "$RUNNER_TEMP/image-inspect.json" --commit "$GITHUB_SHA" --expected-id "$EXPECTED_IMAGE_ID" --out artifacts/image/image.json
+      - name: Verify tested-image archive transfer without rebuilding
+        run: |
+          docker save ecommerce-store-pact:ci --output artifacts/image/pact-image.tar
+          docker image rm ecommerce-store-pact:ci
+          docker load --input artifacts/image/pact-image.tar
+          docker image inspect ecommerce-store-pact:ci > "$RUNNER_TEMP/reloaded-image.json"
+          python3 scripts/image-metadata.py verify --inspect "$RUNNER_TEMP/reloaded-image.json" --metadata artifacts/image/image.json --commit "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: pact-tested-image
+          path: artifacts/image/
+          retention-days: 1
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -91,3 +138,41 @@ jobs:
           expected=skipped
           if [[ "$EVENT_NAME" == pull_request ]]; then expected=success; fi
           test "$DEPENDENCY_RESULT" = "$expected"
+
+  publish-image:
+    if: ${{ always() && !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.quality-gate.result == 'success' && needs.container.result == 'success' }}
+    needs: [quality-gate, container]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      PACT_IMAGE_REPOSITORY: ${{ vars.DOCKER_IMAGE || 'mb0101/ecommerce-store-pact-api' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: pact-tested-image
+          path: artifacts/image
+      - name: Load the tested image and verify its source identity
+        run: |
+          docker load --input artifacts/image/pact-image.tar
+          docker image inspect ecommerce-store-pact:ci > "$RUNNER_TEMP/loaded-image.json"
+          python3 scripts/image-metadata.py verify --inspect "$RUNNER_TEMP/loaded-image.json" --metadata artifacts/image/image.json --commit "$GITHUB_SHA"
+      - name: Require configured Docker Hub credentials
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USER || secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_TOKEN || secrets.DOCKERHUB_TOKEN }}
+        run: |
+          test -n "$DOCKER_USERNAME" || { echo 'Missing Docker Hub username secret: DOCKER_USER' >&2; exit 1; }
+          test -n "$DOCKER_PASSWORD" || { echo 'Missing Docker Hub token secret: DOCKER_TOKEN' >&2; exit 1; }
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER || secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN || secrets.DOCKERHUB_TOKEN }}
+      - name: Publish the loaded tested image without rebuilding
+        run: bash scripts/publish-image.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pact-image-reference
+          path: artifacts/image/image-reference.json
+          if-no-files-found: error
+          retention-days: 30
