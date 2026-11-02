@@ -16,8 +16,8 @@ Source repositories later use separate `PACT_PUBLISHER_TOKEN` secrets for regist
 
 CI restores locked dependencies and runs the existing tests/format/source gates. The container
 job builds a Linux/amd64 candidate once, smoke-tests that tag with real MongoDB and scans the
-same image with Trivy, failing on fixed HIGH/CRITICAL findings. Unfixed findings remain in the
-JSON report. Tests and scanning complete before image identity/archive creation.
+same image with Trivy, failing on fixed HIGH/CRITICAL findings and retaining the scan report.
+Tests and scanning complete before image identity/archive creation.
 
 On a main push only, publication waits for the successful quality gate and container job.
 It downloads the current run's archive, loads it and verifies platform, image ID, OCI source
@@ -103,7 +103,8 @@ after operator apply before treating the cloud acceptance criterion as complete.
 ## Rotation and rollback
 
 Rotate each source publisher token together with its matching Terraform SHA-256 map value.
-Apply updated ACA secrets and verify the scope with the helper. Runtime publisher identity is
+Apply updated ACA secrets, restart the active revision after a secret-only update as documented
+in the Terraform README, and verify the scope with the helper. Runtime publisher identity is
 server-derived and existing registry records remain immutable. Roll back the Pact image by
 planning/applying a previously verified digest with the same database and scoped configuration;
 do not destroy or recreate shared infrastructure to roll back one service.
