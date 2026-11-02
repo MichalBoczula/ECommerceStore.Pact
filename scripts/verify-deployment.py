@@ -51,7 +51,8 @@ def verify(url, application, token, *, allow_local_http=False, wait_seconds=180)
             status, ready = call(opener, url + "/health/ready")
             if status == 200 and ready.get("checks", {}).get("mongodb") == "Healthy":
                 break
-        except (URLError, TimeoutError):
+        except (URLError, TimeoutError, json.JSONDecodeError):
+            # ACA can return a temporary HTML response while a zero-scale app starts.
             pass
         if time.monotonic() >= deadline:
             raise ValueError("Deployed MongoDB readiness did not become healthy within the verification window.")
