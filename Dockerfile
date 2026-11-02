@@ -1,3 +1,8 @@
+FROM alpine:3.22 AS comparison-tool
+RUN apk add --no-cache curl
+COPY scripts/install-oasdiff.sh scripts/oasdiff-version.env /install/
+RUN sh /install/install-oasdiff.sh /tools
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /source
 COPY global.json Directory.Build.props ./
@@ -12,6 +17,8 @@ RUN dotnet publish src/ECommerceStore.Pact.Api -c Release --no-restore -o /app /
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app ./
+COPY --from=comparison-tool /tools/oasdiff /usr/local/bin/oasdiff
+COPY --from=comparison-tool /tools/oasdiff-LICENSE /usr/share/licenses/oasdiff/LICENSE
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 USER $APP_UID

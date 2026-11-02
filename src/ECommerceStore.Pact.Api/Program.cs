@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using ECommerceStore.Pact.Api.History;
+using ECommerceStore.Pact.Application.History;
 using ECommerceStore.Pact.Api.Verification;
 using ECommerceStore.Pact.Application.Verification;
 using ECommerceStore.Pact.Api.Health;
@@ -24,7 +26,7 @@ builder.Services.AddProblemDetails(options =>
         if (context.ProblemDetails.Status >= 500)
         {
             context.ProblemDetails.Detail = context.ProblemDetails.Status == 503
-                ? "Registry storage is unavailable."
+                ? "A registry dependency is unavailable."
                 : "An unexpected error occurred.";
         }
     };
@@ -57,6 +59,8 @@ builder.Services.AddScoped<ApplicationVersionService>();
 builder.Services.AddScoped<IntegrationService>();
 builder.Services.AddScoped<ContractPublicationService>();
 builder.Services.AddScoped<VerificationRunService>();
+builder.Services.AddScoped<ContractComparisonService>();
+builder.Services.AddScoped<IssueHistoryService>();
 builder.Services.AddSingleton<IValidateOptions<RegistryAuthOptions>, RegistryAuthValidator>();
 builder.Services.AddOptions<RegistryAuthOptions>().Bind(builder.Configuration.GetSection("RegistryAuth")).ValidateOnStart();
 builder.Services.AddAuthentication(PublisherAuthenticationHandler.SchemeName)
@@ -75,6 +79,7 @@ app.MapOpenApi();
 app.MapRegistryEndpoints();
 app.MapContractEndpoints();
 app.MapVerificationEndpoints();
+app.MapHistoryEndpoints();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = _ => false,

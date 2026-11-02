@@ -123,5 +123,39 @@ assert status == 200 and historical == failed, (status, historical)
 status, _, page = call('/api/verification-runs?consumerApplicationId=payments&providerApplicationId=invoice&contractSha256=' + consumer['artifactSha256'], authenticate=False)
 assert status == 200 and len(page['items']) == 2, (status, page)
 (folder / 'verification-runs.json').write_text(json.dumps(page, indent=2))
-print('Container smoke passed: protected writes, immutable publication, exact-byte download and append-only report history.')
+# Compare explicit provider publications using the real pinned binary in the API image.
+provider_base = {'openapi': '3.0.3', 'info': {'title': 'Orders', 'version': '1'}, 'paths': {'/orders': {'get': {
+    'responses': {'200': {'description': 'OK', 'content': {'application/json': {'schema': {
+        'type': 'object', 'required': ['totalAmount'], 'properties': {'totalAmount': {'type': 'number'}}}}}}}}}}}
+def publish_provider(sha, spec):
+    status, _, result = call('/api/contract-publications', {'sourceApplicationId': 'invoice', 'commitSha': sha, 'kind': 'ProviderOpenApi',
+        'sourceRef': 'refs/heads/main', 'buildUrl': invoice_repo + '/actions/runs/1',
+        'contentBase64': base64.b64encode(json.dumps(spec).encode()).decode()})
+    assert status == 201, (status, result)
+    return result
+before = publish_provider('d' * 40, provider_base)
+status, _, _ = call('/api/applications/invoice/versions', {'commitSha': 'f' * 40, 'repositoryUrl': invoice_repo})
+assert status == 201, status
+provider_after = json.loads(json.dumps(provider_base))
+schema = provider_after['paths']['/orders']['get']['responses']['200']['content']['application/json']['schema']
+schema['properties'].pop('totalAmount')
+schema['required'] = []
+after = publish_provider('f' * 40, provider_after)
+comparison_request = {'sourceApplicationId': 'invoice', 'consumerApplicationId': 'payments', 'providerApplicationId': 'invoice',
+    'beforePublicationId': before['id'], 'afterPublicationId': after['id'], 'baselineRef': 'refs/heads/main'}
+status, headers, comparison = call('/api/contract-comparisons', comparison_request)
+assert status == 201 and comparison['schemaAssessment'] == 'PotentiallyBreaking', (status, comparison)
+assert any(item['code'] == 'response-required-property-removed' for item in comparison['findings']), comparison
+assert comparison['toolVersion'] == '1.35.0' and comparison['consumerImpact'] == 'NotEvaluated', comparison
+comparison_location = headers['Location']
+status, _, retry = call('/api/contract-comparisons', comparison_request)
+assert status == 200 and retry == comparison, (status, retry)
+status, _, read = call(comparison_location, authenticate=False)
+assert status == 200 and read == comparison, (status, read)
+status, _, history = call('/api/issue-history?beforeRunId=' + failed['id'] + '&afterRunId=' + passed['id'] + '&baselineRef=refs/heads/main', authenticate=False)
+assert status == 200 and history['comparable'] and history['issues'][0]['transition'] == 'Resolved', (status, history)
+assert history['before']['status'] == 'Failed' and history['after']['status'] == 'Passed', history
+(folder / 'comparison.json').write_text(json.dumps(comparison, indent=2))
+(folder / 'issue-history.json').write_text(json.dumps(history, indent=2))
+print('Container smoke passed: immutable contracts/reports, pinned OpenAPI comparison and evidence-based issue history.')
 PY

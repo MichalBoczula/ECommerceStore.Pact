@@ -1,4 +1,5 @@
 using ECommerceStore.Pact.Application;
+using ECommerceStore.Pact.Application.History;
 using ECommerceStore.Pact.Application.Verification;
 using ECommerceStore.Pact.Application.Contracts;
 using ECommerceStore.Pact.Domain;
@@ -28,7 +29,8 @@ public sealed class RegistryExceptionHandler : IExceptionHandler
                 Detail = "This CI run, attempt and check already has a different report for this version pair and contract.",
                 Extensions = { ["code"] = "verification_execution_conflict" }
             },
-            RegistryRequestTooLargeException => new ProblemDetails { Status = 413, Title = "Verification report too large.", Detail = "The JSON report envelope is limited to 1 MiB." },
+            RegistryRequestTooLargeException => new ProblemDetails { Status = 413, Title = "Registry request too large.", Detail = "The JSON request envelope is limited to 1 MiB." },
+            ComparisonUnavailableException => new ProblemDetails { Status = 503, Title = "Contract comparison unavailable.", Extensions = { ["code"] = "comparison_unavailable" } },
             RegistryUnavailableException => new ProblemDetails { Status = 503, Title = "Registry storage unavailable." },
             ContractConflictException => new ProblemDetails
             {

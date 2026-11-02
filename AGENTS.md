@@ -21,6 +21,10 @@ to its backlog item. Commits, code, documentation and PR descriptions are in Eng
 - Verification writes are owned by the provider. Keep CI execution identity separate from
   report fingerprint, preserve reruns and distinguish infrastructure Error from Failed.
   Derive expected interaction count from the bound Pact, never caller-supplied totals.
+- Contract comparisons require explicit publication IDs, integration and baseline ref. Preserve
+  insert-only snapshots and the pinned comparison profile/tool/checksums. Tool failure is never safe.
+- Issue resolution requires the exact Pact hash and comparable verifier/check configuration plus
+  a passing candidate run. Requirement removal, missing diagnostics or an Error never prove a fix.
 - Use official Pact tooling in consumer/provider CI; do not implement a parallel matching engine.
 - Keep consumer requirements independent from provider-generated expectations. Tests must
   execute existing production adapters and real generated-client serialization.

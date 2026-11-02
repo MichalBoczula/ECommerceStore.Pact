@@ -1,4 +1,6 @@
 using ECommerceStore.Pact.Application;
+using ECommerceStore.Pact.Application.History;
+using ECommerceStore.Pact.Infrastructure.History;
 using ECommerceStore.Pact.Application.Verification;
 using ECommerceStore.Pact.Infrastructure.Verification;
 using ECommerceStore.Pact.Application.Contracts;
@@ -38,6 +40,8 @@ public static class DependencyInjection
         services.AddSingleton<IApplicationVersionRepository, MongoApplicationVersionRepository>();
         services.AddSingleton<IIntegrationRepository, MongoIntegrationRepository>();
         services.AddSingleton<IContractRepository, MongoContractRepository>();
+        services.AddSingleton<IContractComparisonRepository, MongoContractComparisonRepository>();
+        services.AddSingleton<IContractSchemaComparer, OasDiffSchemaComparer>();
         services.AddSingleton<IVerificationRunRepository, MongoVerificationRunRepository>();
         services.AddSingleton<IContractDocumentValidator, ContractDocumentValidator>();
         services.AddHealthChecks().AddCheck<MongoReadinessHealthCheck>("mongodb", tags: ["ready"]);
