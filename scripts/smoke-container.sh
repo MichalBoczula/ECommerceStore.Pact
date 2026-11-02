@@ -19,7 +19,7 @@ docker compose -p "$stack" config --quiet
 docker compose -p "$stack" up --build -d
 address="$(docker compose -p "$stack" port api 8080)"
 base_url="http://$address"
-curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-connrefused \
+curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-all-errors \
   --retry-max-time 60 --max-time 5 "$base_url/health/ready" > artifacts/container/ready.json
 curl --fail --silent --show-error --max-time 10 "$base_url/health/live" > artifacts/container/live.json
 curl --fail --silent --show-error --max-time 10 "$base_url/openapi/v1.json" > artifacts/container/openapi.json
