@@ -12,5 +12,6 @@
   <ItemGroup>
     <ProjectReference Include="../../src/ECommerceStore.Pact.Api/ECommerceStore.Pact.Api.csproj" />
     <Using Include="Xunit" />
+    <Compile Include="../Shared/PublisherTestSettings.cs" Link="PublisherTestSettings.cs" />
   </ItemGroup>
 </Project>

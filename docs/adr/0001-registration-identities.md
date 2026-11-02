@@ -45,9 +45,10 @@ version; a retry is a lookup of the original immutable registration. Index defin
 changes require an explicit schema evolution task. Corrupt persisted records produce a
 server failure, not a caller-validation 400.
 
-This local development stage has anonymous registration endpoints; authenticated publication
-is PACT/03 and external hosting is PACT/07. The default Compose stack remains bound to loopback.
-Contracts, verification runs, diff classification and compatibility decisions remain planned.
+PACT/02 introduced anonymous local registration. PACT/03 now protects all writes and stores
+contract artifacts/publications; see [ADR-0002](0002-contract-publication.md). External hosting
+is PACT/07. The default Compose stack remains bound to loopback. Verification runs, diff
+classification and compatibility decisions remain planned.
 
 ## Verification
 

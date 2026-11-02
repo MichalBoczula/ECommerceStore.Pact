@@ -1,10 +1,15 @@
 using System.Diagnostics;
 using ECommerceStore.Pact.Api.Health;
+using ECommerceStore.Pact.Api.Contracts;
+using ECommerceStore.Pact.Api.Security;
 using ECommerceStore.Pact.Api.Registry;
 using ECommerceStore.Pact.Application;
+using ECommerceStore.Pact.Application.Contracts;
 using ECommerceStore.Pact.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,8 +35,17 @@ builder.Services.AddOpenApi(options =>
         {
             Title = "ECommerceStore Pact Registry",
             Version = "v1",
-            Description = "Application versions and declared integrations. Contract artifacts and verification evidence are subsequent stages."
+            Description = "Immutable contract artifacts, source versions and publication provenance. Upload acceptance is not verification evidence."
         };
+        document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+        document.Components.SecuritySchemes[PublisherAuthenticationHandler.SchemeName] = new OpenApiSecurityScheme
+        { Type = SecuritySchemeType.Http, Scheme = "bearer", Description = "Opaque publisher token scoped to application IDs." };
+        foreach (var path in document.Paths.Values)
+            foreach (var operation in path.Operations ?? [])
+                if (operation.Key.ToString().Equals("POST", StringComparison.OrdinalIgnoreCase))
+                    operation.Value.Security = [new OpenApiSecurityRequirement
+                    { [new OpenApiSecuritySchemeReference(PublisherAuthenticationHandler.SchemeName, document)] = [] }];
         return Task.CompletedTask;
     });
 });
@@ -39,6 +53,12 @@ builder.Services.AddRegistryInfrastructure(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ApplicationVersionService>();
 builder.Services.AddScoped<IntegrationService>();
+builder.Services.AddScoped<ContractPublicationService>();
+builder.Services.AddSingleton<IValidateOptions<RegistryAuthOptions>, RegistryAuthValidator>();
+builder.Services.AddOptions<RegistryAuthOptions>().Bind(builder.Configuration.GetSection("RegistryAuth")).ValidateOnStart();
+builder.Services.AddAuthentication(PublisherAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, PublisherAuthenticationHandler>(PublisherAuthenticationHandler.SchemeName, _ => { });
+builder.Services.AddAuthorizationBuilder().AddPolicy("RegistryWrite", policy => policy.RequireAuthenticatedUser());
 builder.Services.AddExceptionHandler<RegistryExceptionHandler>();
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
@@ -46,8 +66,11 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapOpenApi();
 app.MapRegistryEndpoints();
+app.MapContractEndpoints();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = _ => false,

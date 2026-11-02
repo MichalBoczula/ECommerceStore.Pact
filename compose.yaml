@@ -19,6 +19,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       Mongo__ConnectionString: mongodb://mongodb:27017
       Mongo__DatabaseName: ecommercestore-pact
+      RegistryAuth__Publishers__local__TokenSha256: ${PACT_PUBLISHER_TOKEN_SHA256:?Run bash scripts/init-local.sh first}
+      RegistryAuth__Publishers__local__ApplicationIds__0: "*"
     ports:
       - "127.0.0.1:${PACT_HTTP_PORT:-5080}:8080"
     depends_on:

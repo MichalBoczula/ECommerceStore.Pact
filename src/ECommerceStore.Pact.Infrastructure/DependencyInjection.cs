@@ -1,4 +1,6 @@
 using ECommerceStore.Pact.Application;
+using ECommerceStore.Pact.Application.Contracts;
+using ECommerceStore.Pact.Infrastructure.Contracts;
 using ECommerceStore.Pact.Infrastructure.Mongo;
 using ECommerceStore.Pact.Infrastructure.Registry;
 using Microsoft.Extensions.Configuration;
@@ -33,6 +35,8 @@ public static class DependencyInjection
         services.AddSingleton<RegistryIndexes>();
         services.AddSingleton<IApplicationVersionRepository, MongoApplicationVersionRepository>();
         services.AddSingleton<IIntegrationRepository, MongoIntegrationRepository>();
+        services.AddSingleton<IContractRepository, MongoContractRepository>();
+        services.AddSingleton<IContractDocumentValidator, ContractDocumentValidator>();
         services.AddHealthChecks().AddCheck<MongoReadinessHealthCheck>("mongodb", tags: ["ready"]);
         return services;
     }

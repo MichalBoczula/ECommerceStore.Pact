@@ -3,13 +3,14 @@
 Versioned contract artifacts and compatibility history for the ECommerceStore applications.
 The delivery plan is in [TECHNICAL_TODO.md](TECHNICAL_TODO.md).
 
-## Current implementation: PACT/01-02
+## Current implementation: PACT/01-03
 
 ASP.NET Core 10 Minimal API, MongoDB configuration and bounded readiness checks,
 generated OpenAPI, ProblemDetails, local Compose and a GitHub Actions quality gate.
 Immutable application versions and directed consumer/provider integrations can now be
-registered and read from MongoDB. Artifact publication, verification ingestion and
-compatibility decisions are subsequent backlog tasks.
+registered and read from MongoDB. Immutable OpenAPI/Pact artifacts and publication provenance
+are stored separately and downloaded byte-for-byte. Verification ingestion and compatibility
+decisions are subsequent backlog tasks; an accepted upload is not a passing contract test.
 
 | Endpoint | Behavior |
 | --- | --- |
@@ -20,6 +21,10 @@ compatibility decisions are subsequent backlog tasks.
 | `GET /api/applications/{applicationId}/versions/{commitSha}` | Read the exact registered version; 404 if absent. |
 | `POST /api/integrations` | Declare a directed consumer/provider pair; 201 new, 200 equivalent retry. |
 | `GET /api/integrations/{consumerApplicationId}/{providerApplicationId}` | Read a declared integration; 404 if absent. |
+| `POST /api/contract-publications` | Publish a contract with registered source version and build provenance; 201 new, 200 retry, 409 conflicting content. |
+| `GET /api/contract-publications/{id}` | Read a publication and its source/integration/artifact references. |
+| `GET /api/artifacts/{sha256}` | Read immutable artifact metadata. |
+| `GET /api/artifacts/{sha256}/content` | Download original bytes, with hash ETag and attachment filename. |
 
 Health responses expose dependency statuses, never connection strings or driver
 exceptions. Unmatched routes return `application/problem+json` with a `traceId`.
@@ -28,16 +33,20 @@ does not prevent startup, but keeps readiness unhealthy.
 
 Registration uses unique indexes and insert-only atomic upserts. Records retain their
 original IDs and timestamps under retries/concurrency. An integration declaration does
-not mean that its contract passed verification. The registration endpoints are for local
-development at this stage; protected writes arrive in PACT/03 before external hosting.
+not mean that its contract passed verification. All POSTs now require a Bearer publisher token
+authorized for the target application (integration declarations are owned by their consumer).
+Public reads and health require no credentials. Empty publisher configuration denies all writes.
 
 ## Register a version and integration
 
 ```bash
+. ./.env
 curl -i http://localhost:5080/api/applications/payments/versions \
+  -H "Authorization: Bearer $PACT_PUBLISHER_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"commitSha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","repositoryUrl":"https://github.com/MichalBoczula/ECommerceStorePayments"}'
 curl -i http://localhost:5080/api/integrations \
+  -H "Authorization: Bearer $PACT_PUBLISHER_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"consumerApplicationId":"payments","providerApplicationId":"invoice"}'
 ```
@@ -48,11 +57,46 @@ form `sha256:<64 hex characters>`. Version metadata is fixed at registration, in
 an omitted digest. Branch/ref is publication metadata (PACT/03), not a version field.
 Unknown request properties are rejected. See [ADR-0001](docs/adr/0001-registration-identities.md).
 
+## Publish contracts
+
+`POST /api/contract-publications` accepts this JSON envelope (replace the content placeholder
+with base64 of the original file bytes):
+
+```json
+{
+  "sourceApplicationId": "payments",
+  "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "kind": "ConsumerPact",
+  "consumerApplicationId": "payments",
+  "providerApplicationId": "invoice",
+  "sourceRef": "refs/heads/main",
+  "buildUrl": "https://github.com/MichalBoczula/ECommerceStorePayments/actions/runs/1",
+  "contentBase64": "<base64 of original UTF-8 Pact JSON>"
+}
+```
+
+Register the source version and consumer/provider integration first. For `ProviderOpenApi`,
+the source application is the provider and the consumer/provider fields must be omitted.
+Supported profiles are OpenAPI 3.0/3.1 JSON and Pact 3/4 HTTP with matching logical party names;
+messages, plugins, external OpenAPI references and duplicate JSON property names are rejected.
+The original artifact is limited to 1 MiB; the complete upload envelope to 2 MiB, also when
+Content-Length is unknown. Limits return 413; bad profiles return 400; missing references 404.
+
+Identical bytes share a hash across application versions. An immutable version/kind/integration
+binding cannot change bytes, even on another branch. Each branch/build/publisher combination
+has its own publication identity and timestamp. See [ADR-0002](docs/adr/0002-contract-publication.md).
+
+Publisher tokens are configured under `RegistryAuth:Publishers:<publisher-id>` with `TokenSha256`
+and an `ApplicationIds` array, e.g. `payments` for that service's CI. The local bootstrap credential
+uses `*` to manage the local demo. Publisher ID comes from authentication, not the request body.
+Use secret injection for token hashes in deployed configuration; keep bearer tokens in CI secrets.
+
 ## Run locally
 
 Requires Docker with Compose:
 
 ```bash
+bash scripts/init-local.sh
 docker compose up --build -d
 curl http://localhost:5080/health/ready
 curl http://localhost:5080/openapi/v1.json
@@ -67,7 +111,10 @@ To run the API on the host with .NET SDK 10:
 
 ```bash
 docker compose up mongodb -d
-dotnet run --project src/ECommerceStore.Pact.Api --launch-profile http
+. ./.env
+RegistryAuth__Publishers__local__TokenSha256="$PACT_PUBLISHER_TOKEN_SHA256" \
+RegistryAuth__Publishers__local__ApplicationIds__0='*' \
+  dotnet run --project src/ECommerceStore.Pact.Api --launch-profile http
 ```
 
 Development settings use `mongodb://localhost:27017`. Outside Development, set
@@ -83,7 +130,8 @@ bash scripts/verify.sh
 
 The same scripts run in CI: locked restore with high/critical NuGet audit failures,
 source/architecture checks, formatting, build, Domain/Application/Infrastructure/HTTP
-tests, real MongoDB concurrency/index tests and a Docker Compose registration smoke test.
+tests, real MongoDB concurrency/index/publication tests and an authenticated Docker Compose
+smoke covering immutable publication and exact-byte content retrieval.
 Reports are under `artifacts/`. The integration fixture starts
 MongoDB 8 through Testcontainers. Alternatively, set `PACT_TEST_MONGODB` to a local
 test MongoDB connection; this does not skip the actual database check.

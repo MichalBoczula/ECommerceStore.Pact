@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using ECommerceStore.Pact.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -17,7 +18,13 @@ public sealed class RegistryApiFactory : WebApplicationFactory<Program>
                 ["Mongo:ConnectionString"] = "mongodb://127.0.0.1:1",
                 ["Mongo:DatabaseName"] = "pact-api-tests",
                 ["Mongo:TimeoutSeconds"] = "1"
-            }));
+            }.Concat(PublisherTestSettings.Configuration)));
+    }
+
+    protected override void ConfigureClient(HttpClient client)
+    {
+        base.ConfigureClient(client);
+        PublisherTestSettings.Authorize(client);
     }
 }
 

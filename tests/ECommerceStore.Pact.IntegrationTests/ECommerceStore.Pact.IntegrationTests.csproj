@@ -13,5 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/ECommerceStore.Pact.Api/ECommerceStore.Pact.Api.csproj" />
     <Using Include="Xunit" />
+    <Compile Include="../Shared/PublisherTestSettings.cs" Link="PublisherTestSettings.cs" />
+    <Compile Include="../Shared/ContractSamples.cs" Link="ContractSamples.cs" />
   </ItemGroup>
 </Project>
