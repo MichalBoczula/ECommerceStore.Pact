@@ -3,7 +3,7 @@
 Versioned contract artifacts and compatibility history for the ECommerceStore applications.
 The delivery plan is in [TECHNICAL_TODO.md](TECHNICAL_TODO.md).
 
-## Current implementation: PACT/01-06
+## Current implementation: PACT/01-06 and PACT/07 release configuration
 
 ASP.NET Core 10 Minimal API, MongoDB configuration and bounded readiness checks,
 generated OpenAPI, ProblemDetails, local Compose and a GitHub Actions quality gate.
@@ -310,16 +310,19 @@ The local-only stack binds API and MongoDB ports to loopback. MongoDB data is in
 the `pact-mongodb` volume; `docker compose down --volumes` removes that local data.
 Set `PACT_HTTP_PORT` or `PACT_MONGO_PORT` when the default ports are occupied.
 
-For host execution/tests, install the pinned comparison binary (Linux amd64/arm64):
+For host execution/tests, install Go 1.27.3, then build the pinned comparison binary (Linux amd64/arm64):
 
 ```bash
 sh scripts/install-oasdiff.sh "$PWD/artifacts/tools"
 export OASDIFF_PATH="$PWD/artifacts/tools/oasdiff"
 ```
 
-The installer verifies committed SHA-256 checksums. On Windows/macOS, use the official 1.35.0
-release for your platform and set `OASDIFF_PATH`. `Comparison__Executable` can also select its
-absolute path. The API checks the executable's version before analysis. Docker/CI install it
+The installer verifies the committed source archive SHA-256 and enforces the Go toolchain pin.
+It rebuilds unmodified oasdiff 1.35.0 source with Go 1.27.3 because the upstream release binary
+contains a vulnerable Go standard library (CVE-2026-111943). Go modules remain locked by the
+upstream go.mod/go.sum. On Windows/macOS, build the same source with the patched toolchain and
+upstream version linker flag, then set `OASDIFF_PATH`. `Comparison__Executable` can also select
+its absolute path. The API checks the executable's version before analysis. Docker/CI build it
 automatically; unavailable comparison tooling does not prevent health or registry reads/writes.
 
 To run the API on the host with .NET SDK 10:
@@ -352,8 +355,39 @@ Reports are under `artifacts/`. The integration fixture starts
 MongoDB 8 through Testcontainers. Alternatively, set `PACT_TEST_MONGODB` to a local
 test MongoDB connection; this does not skip the actual database check.
 
-Container publishing and Azure deployment are PACT/07. This workflow builds and
-tests the image without requiring Docker Hub credentials.
+Container CI builds one Linux/amd64 candidate, runs the full Compose smoke against it, and
+scans fixed HIGH/CRITICAL vulnerabilities with Trivy. On a successful main push, a separate
+job loads that same tested image archive and publishes it to Docker Hub after the quality
+gate. PR/dispatch checks need no registry credentials. See [deployment instructions](docs/deployment.md)
+for required push secrets, the immutable image receipt and the companion shared Azure Terraform
+configuration. Actual publication/apply/hosted readiness still need operator configuration.
+
+## Image publication and Azure
+
+Set `DOCKER_USER` and `DOCKER_TOKEN` repository secrets for the Pact image's Docker Hub account.
+Existing `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` names are accepted as fallbacks. Optional
+`DOCKER_IMAGE` selects a namespace/repository (default `mb0101/ecommerce-store-pact-api`).
+A main push fails publication with a named missing-setting error when credentials are absent;
+it never silently claims to have published an image.
+
+The `pact-image-reference` workflow artifact contains `image-reference.json` with the verified
+source commit, local image ID and registry digest. Deploy its `imageReference` field through
+`app_images.pact` in [ECommerceStore.Terraform](https://github.com/MichalBoczula/ECommerceStore.Terraform),
+using the existing ACA environment/state/Mongo cluster, a dedicated database and scoped publisher
+hashes injected through ACA secret references. Terraform does not create another cluster or
+an environment for this registry. Configuration is opt-in and the hosted image must use a digest.
+
+After an operator applies the reviewed Terraform plan, verify readiness and publisher scope:
+
+```bash
+# Supply the existing raw publisher token through the environment, not a URL or argument.
+python3 scripts/verify-deployment.py --url https://YOUR-PACT-HOST --application payments
+```
+
+Set `PACT_PUBLISHER_TOKEN` securely before running the command. It checks Mongo readiness,
+liveness and anonymous-write rejection, then verifies the scoped credential using a deliberately
+invalid repository URL that fails before persistence. It writes no registry records and refuses
+redirects. Full operator instructions and rollout limits are in [docs/deployment.md](docs/deployment.md).
 
 ## Planned application boundaries
 

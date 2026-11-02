@@ -1,4 +1,4 @@
-FROM alpine:3.22 AS comparison-tool
+FROM golang:1.27.3-alpine AS comparison-tool
 RUN apk add --no-cache curl
 COPY scripts/install-oasdiff.sh scripts/oasdiff-version.env /install/
 RUN sh /install/install-oasdiff.sh /tools

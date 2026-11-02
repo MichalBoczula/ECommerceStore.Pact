@@ -18,7 +18,12 @@ cleanup() {
 trap cleanup EXIT
 
 docker compose -p "$stack" config --quiet
-docker compose -p "$stack" up --build -d
+if [[ "${PACT_IMAGE_PREBUILT:-false}" == true ]]; then
+  docker compose -p "$stack" pull mongodb
+  docker compose -p "$stack" up --no-build --pull never -d
+else
+  docker compose -p "$stack" up --build -d
+fi
 address="$(docker compose -p "$stack" port api 8080)"
 base_url="http://$address"
 curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-all-errors \
@@ -184,3 +189,5 @@ assert failed_decision['policy'] == 'explicit-ci-execution-v1', failed_decision
 (folder / 'compatibility-decisions.json').write_text(json.dumps({'failed': failed_decision, 'passed': passed_decision, 'missing': missing_decision}, indent=2))
 print('Container smoke passed: immutable contracts/reports, schema comparison, issue history and explicit-version compatibility decisions.')
 PY
+
+PACT_PUBLISHER_TOKEN="$PACT_SMOKE_TOKEN" python3 scripts/verify-deployment.py --url "$base_url" --application payments --allow-local-http > artifacts/container/deployment-verification.json

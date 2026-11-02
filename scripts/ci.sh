@@ -8,8 +8,9 @@ case "${1:-}" in
     ;;
   source)
     git diff --check
-    bash -n scripts/ci.sh scripts/verify.sh scripts/smoke-container.sh scripts/init-local.sh scripts/install-oasdiff.sh
+    bash -n scripts/ci.sh scripts/verify.sh scripts/smoke-container.sh scripts/init-local.sh scripts/install-oasdiff.sh scripts/publish-image.sh
     python3 scripts/check-architecture.py
+    python3 -m unittest discover -s tests/deployment -v
     ;;
   format)
     dotnet format ECommerceStore.Pact.slnx --verify-no-changes --no-restore

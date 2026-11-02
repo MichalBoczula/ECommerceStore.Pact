@@ -20,6 +20,13 @@ MongoDB availability is a readiness condition, not a process-liveness condition.
 has a bounded timeout and does not expose the original driver exception. Valid connection
 configuration is required at startup even while the database itself is unavailable.
 
+Release configuration is PACT/07: one built image is smoke-tested/scanned, transferred as an
+artifact, then published after the main quality gate. Source/image identity and a registry-digest
+receipt connect release to deployment. The companion Terraform root reuses existing ACA/Mongo
+infrastructure with scoped ACA secret references. Hosted readiness is verified after an operator
+applies the reviewed plan; mocked plans and PR CI do not establish an Azure deployment.
+See [deployment instructions](deployment.md) and [ADR-0006](adr/0006-image-publication-and-hosting.md).
+
 ## Model and delivery state
 
 | Record | Identity and responsibility |
