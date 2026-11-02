@@ -10,7 +10,11 @@ root/state and is deployed manually from reviewed plans.
 
 The container job builds one Linux/amd64 image, runs the existing full Compose smoke with
 `PACT_IMAGE_PREBUILT=true`, and scans the same tag with the store's pinned Trivy action. Fixed
-HIGH/CRITICAL findings fail the job; scan output is retained. Only successful image work exports
+HIGH/CRITICAL findings fail the job; scan output is retained. oasdiff 1.35.0 is built from its
+checksum-pinned, unmodified release source with Go 1.27.3; the upstream binary embeds Go 1.27.2,
+affected by [CVE-2026-111943](https://pkg.go.dev/vuln/GO-2026-6809). This keeps comparison
+semantics/version pinned while applying the Go security fix in both CI and Docker.
+Only successful image work exports
 an archive and a metadata manifest bound to source commit, OCI revision, image ID and platform.
 The main-only publish job waits for the quality gate, loads/validates that archive and pushes
 commit/latest tags without rebuilding. Matching registry digests produce `image-reference.json`.

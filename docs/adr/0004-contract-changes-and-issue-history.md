@@ -39,9 +39,12 @@ conversion to provider-generated expectations.
 
 ## Pinned OpenAPI comparison profile
 
-Provider OpenAPI uses the official **oasdiff 1.35.0** release. Linux amd64/arm64 archive hashes
-are committed in `scripts/oasdiff-version.env` and checked by `install-oasdiff.sh`. The API image
-and CI install the same binary, retaining the release license. Host runs may select `OASDIFF_PATH` or `Comparison:Executable`;
+Provider OpenAPI uses unmodified **oasdiff 1.35.0** source. Its release commit/source archive
+checksum and Go 1.27.3 toolchain are pinned in `scripts/oasdiff-version.env` and enforced by
+`install-oasdiff.sh`. PACT/07 replaces upstream prebuilt binaries, whose Go 1.27.2 standard
+library is affected by CVE-2026-111943, with builds using the patched toolchain. API image and
+CI build the same source/dependency pins with the upstream version linker flag and retain the
+release license. The comparison policy/version remains unchanged. Host runs may select `OASDIFF_PATH` or `Comparison:Executable`;
 the runtime rejects a different reported version. No new NuGet dependency is required.
 
 Invoke `changelog --format json --lang en --allow-external-refs=false --flatten-allof

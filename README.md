@@ -310,16 +310,19 @@ The local-only stack binds API and MongoDB ports to loopback. MongoDB data is in
 the `pact-mongodb` volume; `docker compose down --volumes` removes that local data.
 Set `PACT_HTTP_PORT` or `PACT_MONGO_PORT` when the default ports are occupied.
 
-For host execution/tests, install the pinned comparison binary (Linux amd64/arm64):
+For host execution/tests, install Go 1.27.3, then build the pinned comparison binary (Linux amd64/arm64):
 
 ```bash
 sh scripts/install-oasdiff.sh "$PWD/artifacts/tools"
 export OASDIFF_PATH="$PWD/artifacts/tools/oasdiff"
 ```
 
-The installer verifies committed SHA-256 checksums. On Windows/macOS, use the official 1.35.0
-release for your platform and set `OASDIFF_PATH`. `Comparison__Executable` can also select its
-absolute path. The API checks the executable's version before analysis. Docker/CI install it
+The installer verifies the committed source archive SHA-256 and enforces the Go toolchain pin.
+It rebuilds unmodified oasdiff 1.35.0 source with Go 1.27.3 because the upstream release binary
+contains a vulnerable Go standard library (CVE-2026-111943). Go modules remain locked by the
+upstream go.mod/go.sum. On Windows/macOS, build the same source with the patched toolchain and
+upstream version linker flag, then set `OASDIFF_PATH`. `Comparison__Executable` can also select
+its absolute path. The API checks the executable's version before analysis. Docker/CI build it
 automatically; unavailable comparison tooling does not prevent health or registry reads/writes.
 
 To run the API on the host with .NET SDK 10:
