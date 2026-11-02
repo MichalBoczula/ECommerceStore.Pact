@@ -1,5 +1,6 @@
 using ECommerceStore.Pact.Infrastructure.Contracts;
 using MongoDB.Driver;
+using ECommerceStore.Pact.Infrastructure.Compatibility;
 using ECommerceStore.Pact.Infrastructure.History;
 using ECommerceStore.Pact.Infrastructure.Verification;
 
@@ -7,6 +8,8 @@ namespace ECommerceStore.Pact.Infrastructure.Registry;
 
 internal sealed class RegistryCollections(IMongoDatabase database)
 {
+    internal IMongoCollection<VerificationProfileDocument> VerificationProfiles { get; } = database.GetCollection<VerificationProfileDocument>("verification_profiles");
+    internal IMongoCollection<CompatibilityDecisionDocument> CompatibilityDecisions { get; } = database.GetCollection<CompatibilityDecisionDocument>("compatibility_decisions");
     internal IMongoCollection<ContractComparisonDocument> ContractComparisons { get; } = database.GetCollection<ContractComparisonDocument>("contract_comparisons");
     internal IMongoCollection<VerificationRunDocument> VerificationRuns { get; } = database.GetCollection<VerificationRunDocument>("verification_runs");
     internal IMongoCollection<ApplicationVersionDocument> Versions { get; } =

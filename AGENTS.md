@@ -25,6 +25,10 @@ to its backlog item. Commits, code, documentation and PR descriptions are in Eng
   insert-only snapshots and the pinned comparison profile/tool/checksums. Tool failure is never safe.
 - Issue resolution requires the exact Pact hash and comparable verifier/check configuration plus
   a passing candidate run. Requirement removal, missing diagnostics or an Error never prove a fix.
+- Compatibility uses a pinned consumer-owned verification profile and explicit version/hash/CI
+  execution selectors. Require every configured check; never select a later upload or arbitrary run.
+  Preserve decision policy, row/matrix outcomes and evidence as immutable snapshots. Missing or
+  inapplicable evidence is Unverified; only complete Passed matrices are compatible.
 - Use official Pact tooling in consumer/provider CI; do not implement a parallel matching engine.
 - Keep consumer requirements independent from provider-generated expectations. Tests must
   execute existing production adapters and real generated-client serialization.

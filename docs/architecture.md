@@ -1,6 +1,6 @@
 # Architecture and versioning
 
-## Implemented boundary (PACT/01-05)
+## Implemented boundary (PACT/01-06)
 
 API owns HTTP hosting, generated OpenAPI, ProblemDetails and health response formatting.
 Domain owns immutable application-version and directed-integration identities and their
@@ -8,12 +8,13 @@ validation. Application owns registration/lookup services and repository ports.
 Infrastructure owns MongoDB documents, explicit mapping, unique indexes, atomic registration,
 client lifetime and the readiness probe. API maps request/result DTOs and errors.
 Implemented collections are `application_versions`, `integrations`, `contract_artifacts`,
-`contract_versions`, `contract_publications`, `verification_runs` and `contract_comparisons`. Publication separates shared content from
+`contract_versions`, `contract_publications`, `verification_runs`, `contract_comparisons`, `verification_profiles` and `compatibility_decisions`. Publication separates shared content from
 immutable source-version bindings and branch/build/publisher provenance.
 See [ADR-0001](adr/0001-registration-identities.md) for normalization, metadata and retry rules.
 See [ADR-0002](adr/0002-contract-publication.md) for publication, validation profiles and access.
 See [ADR-0003](adr/0003-verification-runs.md) for report identities, statuses and retry rules.
 See [ADR-0004](adr/0004-contract-changes-and-issue-history.md) for pinned comparison semantics and evidence-based issue transitions.
+See [ADR-0005](adr/0005-explicit-compatibility-decisions.md) for verification profiles, exact CI selection and immutable decisions.
 
 MongoDB availability is a readiness condition, not a process-liveness condition. A probe
 has a bounded timeout and does not expose the original driver exception. Valid connection
@@ -31,12 +32,14 @@ configuration is required at startup even while the database itself is unavailab
 | VerificationRun (implemented) | Exact consumer/provider versions + Pact hash + verifier/configuration + CI run/attempt/check; append-only report and structured diagnostics. |
 | ContractComparison (implemented) | Explicit before/after publications, integration, selected branch baseline and pinned schema/content analysis snapshot. |
 | IssueHistory (implemented projection) | Explicit run pair and versioned policy; requirement-level transitions without changing stored evidence. |
+| VerificationProfile (implemented) | Integration + name/version, consumer-owned immutable required verifier/check configuration. |
+| CompatibilityDecision (implemented) | Bounded explicit-version matrix, profile/policy, selected CI execution per pair, observed evidence and stored row/matrix outcomes. |
 
 A provider OpenAPI artifact describes the offered schema. A consumer Pact describes the
 actual request/expected-response interactions exercised by consumer tests. The registry
 does not treat these formats as interchangeable or implement a new Pact matching engine.
 Execution belongs in CI using official Pact tooling. The registry stores uploads, provenance and provider CI reports. It validates references and
-report consistency; it does not independently attest execution. Compatibility selection is PACT/06.
+report consistency; it does not independently attest execution. Compatibility selection uses a pinned profile and explicit version/hash/CI selectors. Environment/deployment selection is not implemented.
 
 Application versions and artifact contents are separate. A source-code change may produce
 an identical contract. Conversely, multiple verification runs can examine the same contract

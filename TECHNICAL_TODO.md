@@ -9,8 +9,8 @@ a task done. Backend and one real CI integration precede the frontend.
 | PACT/02 | Application versions and integration identities | Done (PR #2) | 01 |
 | PACT/03 | Immutable contract publication and retrieval | Done (PR #3) | 02 |
 | PACT/04 | Verification runs and structured issues | Done (PR #4) | 03 |
-| PACT/05 | Contract changes and issue history | In progress | 03, 04 |
-| PACT/06 | Compatibility decisions for explicit versions | Planned | 04, 05 |
+| PACT/05 | Contract changes and issue history | Done (PR #5) | 03, 04 |
+| PACT/06 | Compatibility decisions for explicit versions | In progress | 04, 05 |
 | PACT/07 | Image publication and Azure deployment configuration | Planned | 06 |
 | PACT/08 | Payments consumer Pact pilot | Planned | 03 |
 | PACT/09 | Invoice verification and complete CI pilot | Planned | 06, 07, 08 |
