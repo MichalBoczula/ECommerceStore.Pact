@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using ECommerceStore.Pact.Api.Health;
+using ECommerceStore.Pact.Api.Registry;
+using ECommerceStore.Pact.Application;
 using ECommerceStore.Pact.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
@@ -14,7 +16,9 @@ builder.Services.AddProblemDetails(options =>
             Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;
         if (context.ProblemDetails.Status >= 500)
         {
-            context.ProblemDetails.Detail = "An unexpected error occurred.";
+            context.ProblemDetails.Detail = context.ProblemDetails.Status == 503
+                ? "Registry storage is unavailable."
+                : "An unexpected error occurred.";
         }
     };
 });
@@ -26,18 +30,24 @@ builder.Services.AddOpenApi(options =>
         {
             Title = "ECommerceStore Pact Registry",
             Version = "v1",
-            Description = "Contract artifacts and compatibility history. Business endpoints arrive in subsequent backlog tasks."
+            Description = "Application versions and declared integrations. Contract artifacts and verification evidence are subsequent stages."
         };
         return Task.CompletedTask;
     });
 });
 builder.Services.AddRegistryInfrastructure(builder.Configuration);
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<ApplicationVersionService>();
+builder.Services.AddScoped<IntegrationService>();
+builder.Services.AddExceptionHandler<RegistryExceptionHandler>();
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.MapOpenApi();
+app.MapRegistryEndpoints();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = _ => false,

@@ -2,6 +2,8 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /source
 COPY global.json Directory.Build.props ./
 COPY src/ECommerceStore.Pact.Api/ECommerceStore.Pact.Api.csproj src/ECommerceStore.Pact.Api/packages.lock.json src/ECommerceStore.Pact.Api/
+COPY src/ECommerceStore.Pact.Application/ECommerceStore.Pact.Application.csproj src/ECommerceStore.Pact.Application/packages.lock.json src/ECommerceStore.Pact.Application/
+COPY src/ECommerceStore.Pact.Domain/ECommerceStore.Pact.Domain.csproj src/ECommerceStore.Pact.Domain/packages.lock.json src/ECommerceStore.Pact.Domain/
 COPY src/ECommerceStore.Pact.Infrastructure/ECommerceStore.Pact.Infrastructure.csproj src/ECommerceStore.Pact.Infrastructure/packages.lock.json src/ECommerceStore.Pact.Infrastructure/
 RUN dotnet restore src/ECommerceStore.Pact.Api --locked-mode
 COPY src/ src/

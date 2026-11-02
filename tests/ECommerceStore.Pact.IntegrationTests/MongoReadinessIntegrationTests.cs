@@ -35,7 +35,11 @@ public sealed class MongoFixture : IAsyncLifetime
     }
 }
 
-public sealed class MongoReadinessIntegrationTests(MongoFixture mongo) : IClassFixture<MongoFixture>
+[CollectionDefinition("MongoDB")]
+public sealed class MongoCollection : ICollectionFixture<MongoFixture> { }
+
+[Collection("MongoDB")]
+public sealed class MongoReadinessIntegrationTests(MongoFixture mongo)
 {
     [Fact]
     public async Task ReadinessChecksActualMongoDb()

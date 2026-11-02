@@ -9,6 +9,7 @@ case "${1:-}" in
   source)
     git diff --check
     bash -n scripts/ci.sh scripts/verify.sh scripts/smoke-container.sh
+    python3 scripts/check-architecture.py
     ;;
   format)
     dotnet format ECommerceStore.Pact.slnx --verify-no-changes --no-restore

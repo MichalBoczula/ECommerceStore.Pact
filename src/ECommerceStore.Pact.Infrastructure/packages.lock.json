@@ -152,6 +152,15 @@
         "type": "Transitive",
         "resolved": "0.7.3",
         "contentHash": "U9Ix4l4cl58Kzz1rJzj5hoVTjmbx1qGMwzAcbv1j/d3NzrFaESIurQyg+ow4mivCgkE3S413y+U9k4WdnEIkRA=="
+      },
+      "ecommercestore.pact.application": {
+        "type": "Project",
+        "dependencies": {
+          "ECommerceStore.Pact.Domain": "[1.0.0, )"
+        }
+      },
+      "ecommercestore.pact.domain": {
+        "type": "Project"
       }
     }
   }

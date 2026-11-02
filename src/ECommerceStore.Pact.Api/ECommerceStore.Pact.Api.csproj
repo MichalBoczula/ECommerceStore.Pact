@@ -3,6 +3,7 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../ECommerceStore.Pact.Application/ECommerceStore.Pact.Application.csproj" />
     <ProjectReference Include="../ECommerceStore.Pact.Infrastructure/ECommerceStore.Pact.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
