@@ -1,0 +1,21 @@
+# Agent instructions
+
+Read README.md, TECHNICAL_TODO.md and docs/architecture.md before editing. Scope each PR
+to its backlog item. Commits, code, documentation and PR descriptions are in English.
+
+- API owns HTTP request/result DTOs, validation responses, ProblemDetails and composition.
+- Infrastructure owns MongoDB documents, explicit mapping, indexes, drivers and repositories.
+- Introduce Domain and Application with PACT/02 behavior. Domain must not reference ASP.NET,
+  MongoDB, generated clients or infrastructure. Application owns use cases and ports.
+- Preserve immutable version/artifact identities and append-only verification history.
+  Never use upload order or an unqualified latest version as a compatibility decision.
+- Use official Pact tooling in consumer/provider CI; do not implement a parallel matching engine.
+- Keep consumer requirements independent from provider-generated expectations. Tests must
+  execute existing production adapters and real generated-client serialization.
+- Do not conflate a schema diff, a verification result and a deployment decision.
+- Update a backlog status only when its stated acceptance criteria are met. Accepted docs
+  describe implemented behavior; label planned behavior explicitly.
+- Run bash scripts/verify.sh (requires .NET 10 and Docker), or relevant scripts/ci.sh stages.
+  Report only checks actually run and describe unavailable verification. Do not weaken or
+  skip gates to get a green result. Preserve locked dependencies and audit high/critical issues.
+- Use the PR template and include the backlog ID, behavior, validation and remaining work.
