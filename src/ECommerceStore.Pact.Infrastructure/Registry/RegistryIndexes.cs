@@ -1,3 +1,4 @@
+using ECommerceStore.Pact.Infrastructure.Contracts;
 using MongoDB.Driver;
 
 namespace ECommerceStore.Pact.Infrastructure.Registry;
@@ -29,6 +30,12 @@ internal sealed class RegistryIndexes(RegistryCollections collections) : IDispos
                 Builders<IntegrationDocument>.IndexKeys.Ascending(value => value.ConsumerApplicationId)
                     .Ascending(value => value.ProviderApplicationId),
                 new CreateIndexOptions { Name = "uq_consumer_provider", Unique = true }), cancellationToken: cancellationToken);
+            await collections.ContractBindings.Indexes.CreateOneAsync(new CreateIndexModel<ContractBindingDocument>(
+                Builders<ContractBindingDocument>.IndexKeys.Ascending(value => value.SourceVersionId).Ascending(value => value.Kind).Ascending(value => value.IntegrationKey),
+                new CreateIndexOptions { Name = "uq_source_kind_integration", Unique = true }), cancellationToken: cancellationToken);
+            await collections.ContractPublications.Indexes.CreateOneAsync(new CreateIndexModel<ContractPublicationDocument>(
+                Builders<ContractPublicationDocument>.IndexKeys.Ascending(value => value.BindingId).Ascending(value => value.ProvenanceHash),
+                new CreateIndexOptions { Name = "uq_binding_provenance", Unique = true }), cancellationToken: cancellationToken);
             _initialized = true;
         }
         finally

@@ -66,6 +66,7 @@
         "type": "Project",
         "dependencies": {
           "ECommerceStore.Pact.Application": "[1.0.0, )",
+          "Microsoft.OpenApi": "[2.12.2, )",
           "MongoDB.Driver": "[3.13.0, )"
         }
       }

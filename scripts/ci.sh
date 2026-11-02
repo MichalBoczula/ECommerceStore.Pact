@@ -8,7 +8,7 @@ case "${1:-}" in
     ;;
   source)
     git diff --check
-    bash -n scripts/ci.sh scripts/verify.sh scripts/smoke-container.sh
+    bash -n scripts/ci.sh scripts/verify.sh scripts/smoke-container.sh scripts/init-local.sh
     python3 scripts/check-architecture.py
     ;;
   format)

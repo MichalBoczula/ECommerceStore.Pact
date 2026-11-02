@@ -1,8 +1,8 @@
 namespace ECommerceStore.Pact.Domain;
 
-internal static class RegistryIdentity
+public static class RegistryIdentity
 {
-    internal static string ApplicationId(string? value, string field)
+    public static string ApplicationId(string? value, string field)
     {
         var normalized = value?.Trim().ToLowerInvariant();
         if (string.IsNullOrEmpty(normalized) || normalized.Length > 100 ||

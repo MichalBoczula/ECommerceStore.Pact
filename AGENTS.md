@@ -10,6 +10,12 @@ to its backlog item. Commits, code, documentation and PR descriptions are in Eng
 - Version metadata, including an omitted image digest, is immutable. Branch/ref belongs to
   publication metadata. Integration registration declares a dependency, not compatibility.
 - Preserve atomic insert-only registration, unique indexes and concurrent retry/conflict checks.
+- Contract bytes are hashed/stored/downloaded unchanged. Separate shared content, immutable
+  source-version bindings and branch/build/publisher publication provenance. Preserve all three.
+- Every POST requires a publisher token and application scope. Never accept publisher identity
+  from the upload body. Empty publisher configuration must keep writes closed.
+- Keep upload limits on both decoded content and the streamed envelope; unknown Content-Length
+  must not bypass limits. Supported JSON profiles are documented in ADR-0002.
 - Preserve immutable version/artifact identities and append-only verification history.
   Never use upload order or an unqualified latest version as a compatibility decision.
 - Use official Pact tooling in consumer/provider CI; do not implement a parallel matching engine.

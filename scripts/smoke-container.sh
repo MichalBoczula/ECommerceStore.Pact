@@ -5,6 +5,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 stack="pact-smoke-${GITHUB_RUN_ID:-local}-$$"
 export PACT_HTTP_PORT=0
 export PACT_MONGO_PORT=0
+export PACT_SMOKE_TOKEN="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+export PACT_PUBLISHER_TOKEN_SHA256="$(python3 -c 'import hashlib,os; print(hashlib.sha256(os.environ["PACT_SMOKE_TOKEN"].encode()).hexdigest())')"
 mkdir -p artifacts/container
 
 cleanup() {
@@ -26,6 +28,8 @@ curl --fail --silent --show-error --max-time 10 "$base_url/openapi/v1.json" > ar
 PACT_SMOKE_URL="$base_url" python3 - <<'PY'
 import json
 import os
+import base64
+import hashlib
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -39,10 +43,13 @@ assert live['status'] == 'Healthy', live
 assert document['info']['title'] == 'ECommerceStore Pact Registry', document
 base_url = os.environ['PACT_SMOKE_URL']
 
-def call(path, payload=None):
+def call(path, payload=None, authenticate=True):
+    headers = {'Content-Type': 'application/json'}
+    if authenticate:
+        headers['Authorization'] = 'Bearer ' + os.environ['PACT_SMOKE_TOKEN']
     request = Request(base_url + path,
                       data=json.dumps(payload).encode() if payload is not None else None,
-                      headers={'Content-Type': 'application/json'})
+                      headers=headers)
     try:
         response = urlopen(request, timeout=10)
     except HTTPError as error:
@@ -52,6 +59,8 @@ def call(path, payload=None):
 
 path = '/api/applications/payments/versions'
 payload = {'commitSha': 'c' * 40, 'repositoryUrl': 'https://github.com/MichalBoczula/ECommerceStorePayments'}
+unauthorized, _, _ = call(path, payload, authenticate=False)
+assert unauthorized == 401, unauthorized
 status, headers, version = call(path, payload)
 assert status == 201, (status, version)
 read_status, _, read = call(headers['Location'])
@@ -65,5 +74,18 @@ assert status == 201, (status, integration)
 read_status, _, read = call(headers['Location'])
 assert read_status == 200 and read == integration, (read_status, read)
 (folder / 'registration.json').write_text(json.dumps({'version': version, 'integration': integration}, indent=2))
-print('Container smoke passed: health, OpenAPI, version registration/retry/conflict and integration persistence.')
+raw = json.dumps({'openapi': '3.0.3', 'info': {'title': 'Smoke – dokument', 'version': '1'}, 'paths': {}}, ensure_ascii=False).encode() + b'\r\n'
+publication = {'sourceApplicationId': 'payments', 'commitSha': 'c' * 40, 'kind': 'ProviderOpenApi',
+               'sourceRef': 'refs/heads/main', 'buildUrl': payload['repositoryUrl'] + '/actions/runs/1',
+               'contentBase64': base64.b64encode(raw).decode()}
+status, _, published = call('/api/contract-publications', publication)
+assert status == 201 and published['artifactSha256'] == hashlib.sha256(raw).hexdigest(), (status, published)
+status, _, repeated = call('/api/contract-publications', publication)
+assert status == 200 and repeated == published, (status, repeated)
+with urlopen(base_url + published['contentUrl'], timeout=10) as download:
+    assert download.read() == raw
+status, _, conflict = call('/api/contract-publications', {**publication, 'contentBase64': base64.b64encode(raw + b'\n').decode()})
+assert status == 409 and conflict['code'] == 'contract_content_conflict', (status, conflict)
+(folder / 'publication.json').write_text(json.dumps(published, indent=2))
+print('Container smoke passed: protected writes, registration, immutable publication and exact-byte content download.')
 PY

@@ -1,14 +1,17 @@
 # Architecture and versioning
 
-## Implemented boundary (PACT/01-02)
+## Implemented boundary (PACT/01-03)
 
 API owns HTTP hosting, generated OpenAPI, ProblemDetails and health response formatting.
 Domain owns immutable application-version and directed-integration identities and their
 validation. Application owns registration/lookup services and repository ports.
 Infrastructure owns MongoDB documents, explicit mapping, unique indexes, atomic registration,
 client lifetime and the readiness probe. API maps request/result DTOs and errors.
-`application_versions` and `integrations` are the implemented collections.
+Implemented collections are `application_versions`, `integrations`, `contract_artifacts`,
+`contract_versions` and `contract_publications`. Publication separates shared content from
+immutable source-version bindings and branch/build/publisher provenance.
 See [ADR-0001](adr/0001-registration-identities.md) for normalization, metadata and retry rules.
+See [ADR-0002](adr/0002-contract-publication.md) for publication, validation profiles and access.
 
 MongoDB availability is a readiness condition, not a process-liveness condition. A probe
 has a bounded timeout and does not expose the original driver exception. Valid connection
@@ -20,16 +23,17 @@ configuration is required at startup even while the database itself is unavailab
 | --- | --- |
 | ApplicationVersion (implemented) | Application + immutable full commit SHA, repository URL, optional immutable image digest. |
 | Integration (implemented) | Directed consumer + provider declaration, independent of version and verification. |
-| ContractArtifact (planned) | Exact original bytes + content hash + artifact kind; immutable. |
-| ContractPublication (planned) | Artifact hash + source application version + integration + branch/provenance. |
+| ContractArtifact (implemented) | Exact original bytes + content hash + artifact kind; immutable. |
+| ContractBinding (implemented) | Registered source version + kind + integration maps to one immutable artifact. |
+| ContractPublication (implemented) | Binding + source ref + build URL + authenticated publisher; retry-stable provenance. |
 | VerificationRun (planned) | Exact consumer/provider versions + Pact hash + verifier identity + CI execution. |
 | ContractChange (planned) | Explicit before/after artifacts and format-aware difference classification. |
 
 A provider OpenAPI artifact describes the offered schema. A consumer Pact describes the
 actual request/expected-response interactions exercised by consumer tests. The registry
 does not treat these formats as interchangeable or implement a new Pact matching engine.
-Execution remains in CI using official Pact tooling; the registry stores evidence and
-applies an explicit compatibility-selection policy.
+Execution belongs in CI using official Pact tooling. The registry currently stores uploads
+and provenance; verification evidence and compatibility selection are PACT/04-06.
 
 Application versions and artifact contents are separate. A source-code change may produce
 an identical contract. Conversely, multiple verification runs can examine the same contract

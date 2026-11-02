@@ -11,5 +11,6 @@
   <ItemGroup>
     <ProjectReference Include="../../src/ECommerceStore.Pact.Domain/ECommerceStore.Pact.Domain.csproj" />
     <Using Include="Xunit" />
+    <Compile Include="../Shared/ContractSamples.cs" Link="ContractSamples.cs" />
   </ItemGroup>
 </Project>

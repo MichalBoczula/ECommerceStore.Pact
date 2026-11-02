@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ECommerceStore.Pact.Api.Registry;
+using ECommerceStore.Pact.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -26,6 +27,7 @@ public sealed class RegistryRegistrationTests(MongoFixture mongo) : IAsyncLifeti
     {
         _factory = CreateFactory();
         _client = _factory.CreateClient();
+        PublisherTestSettings.Authorize(_client);
         _database = _factory.Services.GetRequiredService<IMongoDatabase>();
         return Task.CompletedTask;
     }
@@ -99,6 +101,7 @@ public sealed class RegistryRegistrationTests(MongoFixture mongo) : IAsyncLifeti
     {
         await using var otherHost = CreateFactory();
         using var otherClient = otherHost.CreateClient();
+        PublisherTestSettings.Authorize(otherClient);
         var responses = await Task.WhenAll(Enumerable.Range(0, 12).Select(index =>
             (index % 2 == 0 ? _client : otherClient).PostAsJsonAsync(VersionPath, VersionRequest())));
         try
@@ -254,7 +257,7 @@ public sealed class RegistryRegistrationTests(MongoFixture mongo) : IAsyncLifeti
         {
             ["Mongo:ConnectionString"] = mongo.ConnectionString,
             ["Mongo:DatabaseName"] = _databaseName
-        }));
+        }.Concat(PublisherTestSettings.Configuration)));
     });
 
     private static async Task AssertProblem(HttpResponseMessage response, HttpStatusCode expected, string? code = null)
