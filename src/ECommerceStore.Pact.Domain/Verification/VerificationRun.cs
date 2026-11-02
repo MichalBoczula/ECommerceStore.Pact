@@ -60,8 +60,9 @@ public sealed class VerificationRun
     public DateTimeOffset StartedAt { get; }
     public DateTimeOffset FinishedAt { get; }
     public DateTimeOffset RecordedAt { get; }
-    public string ExecutionKey => VerificationValues.Hash("verification-execution-v1", Target.ConsumerVersionId, Target.ProviderVersionId, Target.BindingId,
-        Target.ContractSha256, Execution.RunId, Execution.Attempt, Execution.CheckId);
+    public string ExecutionKey => Identity(Target.ConsumerVersionId, Target.ProviderVersionId, Target.BindingId, Target.ContractSha256, Execution.RunId, Execution.Attempt, Execution.CheckId);
+    public static string Identity(Guid consumerVersionId, Guid providerVersionId, Guid bindingId, string hash, string runId, int attempt, string checkId) =>
+        VerificationValues.Hash("verification-execution-v1", consumerVersionId, providerVersionId, bindingId, hash, runId, attempt, checkId);
     public string PayloadSha256 => VerificationValues.Hash("verification-report-v1", Target.ConsumerVersionId,
         Target.Consumer.ApplicationId, Target.Consumer.CommitSha, Target.ProviderVersionId, Target.Provider.ApplicationId,
         Target.Provider.CommitSha, Target.PublicationId, Target.BindingId, Target.ContractSha256, Execution.RunId, Execution.Attempt,

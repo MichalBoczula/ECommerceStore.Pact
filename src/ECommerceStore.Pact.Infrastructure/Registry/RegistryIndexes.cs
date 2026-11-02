@@ -1,5 +1,6 @@
 using ECommerceStore.Pact.Infrastructure.Contracts;
 using MongoDB.Driver;
+using ECommerceStore.Pact.Infrastructure.Compatibility;
 using ECommerceStore.Pact.Infrastructure.History;
 using ECommerceStore.Pact.Infrastructure.Verification;
 
@@ -48,6 +49,12 @@ internal sealed class RegistryIndexes(RegistryCollections collections) : IDispos
             await collections.ContractComparisons.Indexes.CreateOneAsync(new CreateIndexModel<ContractComparisonDocument>(
                 Builders<ContractComparisonDocument>.IndexKeys.Ascending(value => value.Key),
                 new CreateIndexOptions { Name = "uq_contract_comparison", Unique = true }), cancellationToken: cancellationToken);
+            await collections.VerificationProfiles.Indexes.CreateOneAsync(new CreateIndexModel<VerificationProfileDocument>(
+                Builders<VerificationProfileDocument>.IndexKeys.Ascending(value => value.Key),
+                new CreateIndexOptions { Name = "uq_verification_profile", Unique = true }), cancellationToken: cancellationToken);
+            await collections.CompatibilityDecisions.Indexes.CreateOneAsync(new CreateIndexModel<CompatibilityDecisionDocument>(
+                Builders<CompatibilityDecisionDocument>.IndexKeys.Ascending(value => value.Key),
+                new CreateIndexOptions { Name = "uq_compatibility_decision", Unique = true }), cancellationToken: cancellationToken);
             _initialized = true;
         }
         finally

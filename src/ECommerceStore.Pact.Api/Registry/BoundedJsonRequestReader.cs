@@ -40,7 +40,8 @@ internal static class BoundedJsonRequestReader
             foreach (var property in element.EnumerateObject())
             {
                 if (!names.Add(property.Name)) throw new JsonException();
-                CheckProperties(property.Value, dto && property.Name.Equals("issues", StringComparison.OrdinalIgnoreCase));
+                CheckProperties(property.Value, dto && (property.Name.Equals("issues", StringComparison.OrdinalIgnoreCase) ||
+                    property.Name.Equals("checks", StringComparison.OrdinalIgnoreCase) || property.Name.Equals("rows", StringComparison.OrdinalIgnoreCase)));
             }
         }
         else if (element.ValueKind == JsonValueKind.Array)

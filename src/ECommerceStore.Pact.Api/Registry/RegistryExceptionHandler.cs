@@ -1,4 +1,5 @@
 using ECommerceStore.Pact.Application;
+using ECommerceStore.Pact.Application.Compatibility;
 using ECommerceStore.Pact.Application.History;
 using ECommerceStore.Pact.Application.Verification;
 using ECommerceStore.Pact.Application.Contracts;
@@ -31,6 +32,13 @@ public sealed class RegistryExceptionHandler : IExceptionHandler
             },
             RegistryRequestTooLargeException => new ProblemDetails { Status = 413, Title = "Registry request too large.", Detail = "The JSON request envelope is limited to 1 MiB." },
             ComparisonUnavailableException => new ProblemDetails { Status = 503, Title = "Contract comparison unavailable.", Extensions = { ["code"] = "comparison_unavailable" } },
+            VerificationProfileConflictException => new ProblemDetails
+            {
+                Status = 409,
+                Title = "Immutable verification profile conflict.",
+                Detail = "This integration/name/version already has different required checks. Register a new profile version.",
+                Extensions = { ["code"] = "verification_profile_conflict" }
+            },
             RegistryUnavailableException => new ProblemDetails { Status = 503, Title = "Registry storage unavailable." },
             ContractConflictException => new ProblemDetails
             {

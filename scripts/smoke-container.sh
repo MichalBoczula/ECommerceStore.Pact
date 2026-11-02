@@ -157,5 +157,30 @@ assert status == 200 and history['comparable'] and history['issues'][0]['transit
 assert history['before']['status'] == 'Failed' and history['after']['status'] == 'Passed', history
 (folder / 'comparison.json').write_text(json.dumps(comparison, indent=2))
 (folder / 'issue-history.json').write_text(json.dumps(history, indent=2))
-print('Container smoke passed: immutable contracts/reports, pinned OpenAPI comparison and evidence-based issue history.')
+# The caller pins all required checks and an exact CI execution for each version pair.
+profile_request = {'consumerApplicationId': 'payments', 'providerApplicationId': 'invoice', 'name': 'smoke-required', 'version': '1',
+    'checks': [{'checkId': 'report-ingestion', 'verifierName': 'synthetic-smoke', 'verifierVersion': '1', 'configurationSha256': 'e' * 64}]}
+status, _, profile = call('/api/verification-profiles', profile_request)
+assert status == 201, (status, profile)
+status, _, repeated = call('/api/verification-profiles', profile_request)
+assert status == 200 and repeated == profile, (status, repeated)
+row = {'consumerCommitSha': 'c' * 40, 'providerCommitSha': 'd' * 40, 'contractSha256': consumer['artifactSha256'],
+       'ciRunId': '1', 'ciAttempt': 1, 'providerSourceRef': 'refs/heads/main'}
+decision_request = {'sourceApplicationId': 'invoice', 'profileId': profile['id'], 'rows': [row]}
+status, headers, failed_decision = call('/api/compatibility-decisions', decision_request)
+assert status == 201 and failed_decision['status'] == 'Failed' and not failed_decision['compatible'], (status, failed_decision)
+failed_decision_location = headers['Location']
+assert failed_decision['rows'][0]['checks'][0]['evidenceId'] == failed['id'], failed_decision
+status, _, retried = call('/api/compatibility-decisions', decision_request)
+assert status == 200 and retried == failed_decision, (status, retried)
+status, _, passed_decision = call('/api/compatibility-decisions', {**decision_request, 'rows': [{**row, 'ciAttempt': 2}]})
+assert status == 201 and passed_decision['status'] == 'Passed' and passed_decision['compatible'], (status, passed_decision)
+status, _, missing_decision = call('/api/compatibility-decisions', {**decision_request, 'rows': [{**row, 'providerCommitSha': 'f' * 40}]})
+assert status == 201 and missing_decision['status'] == 'Unverified' and not missing_decision['compatible'], (status, missing_decision)
+assert missing_decision['rows'][0]['checks'][0]['reason'] == 'MissingExecution', missing_decision
+status, _, original = call(failed_decision_location, authenticate=False)
+assert status == 200 and original == failed_decision, (status, original)
+assert failed_decision['policy'] == 'explicit-ci-execution-v1', failed_decision
+(folder / 'compatibility-decisions.json').write_text(json.dumps({'failed': failed_decision, 'passed': passed_decision, 'missing': missing_decision}, indent=2))
+print('Container smoke passed: immutable contracts/reports, schema comparison, issue history and explicit-version compatibility decisions.')
 PY

@@ -3,7 +3,7 @@
 Versioned contract artifacts and compatibility history for the ECommerceStore applications.
 The delivery plan is in [TECHNICAL_TODO.md](TECHNICAL_TODO.md).
 
-## Current implementation: PACT/01-05
+## Current implementation: PACT/01-06
 
 ASP.NET Core 10 Minimal API, MongoDB configuration and bounded readiness checks,
 generated OpenAPI, ProblemDetails, local Compose and a GitHub Actions quality gate.
@@ -11,7 +11,8 @@ Immutable application versions and directed consumer/provider integrations can n
 registered and read from MongoDB. Immutable OpenAPI/Pact artifacts and publication provenance
 are stored separately and downloaded byte-for-byte. Provider CI can append immutable verification
 reports with structured diagnostics and retrieve their history. Explicit publication comparisons
-and evidence-based issue transitions are available. Compatibility selection is PACT/06;
+and evidence-based issue transitions are available. Compatibility decisions now evaluate exact
+version pairs and CI executions against a pinned required-check profile;
 an accepted contract upload is not a passing test.
 
 | Endpoint | Behavior |
@@ -33,6 +34,10 @@ an accepted contract upload is not a passing test.
 | `POST /api/contract-comparisons` | Snapshot explicit before/after publications within an integration and selected branch baseline; 201 new, 200 retry. |
 | `GET /api/contract-comparisons/{id}` | Read an immutable comparison snapshot. |
 | `GET /api/issue-history?beforeRunId=...&afterRunId=...&baselineRef=refs/heads/main` | Compare explicit verification evidence and project issue transitions. |
+| `POST /api/verification-profiles` | Register consumer-owned required checks by integration/name/version; 201 new, 200 equivalent retry, 409 changed checks. |
+| `GET /api/verification-profiles/{id}` | Read an immutable required-check profile. |
+| `POST /api/compatibility-decisions` | Evaluate and snapshot up to 10 explicit version pairs under a pinned profile; 201 new evidence snapshot, 200 equivalent retry. |
+| `GET /api/compatibility-decisions/{id}` | Read the original decision, profile/policy, outcomes and supporting evidence. |
 
 Health responses expose dependency statuses, never connection strings or driver
 exceptions. Unmatched routes return `application/problem+json` with a `traceId`.
@@ -185,7 +190,7 @@ Select two existing publications of the same kind and source application. Provid
 belongs to the selected integration's provider; consumer Pact belongs to its consumer.
 The integration must be registered. `baselineRef` must match the **before publication's** ref;
 the candidate may come from a feature branch. There is no automatic latest baseline. Environment
-selection awaits deployment records in PACT/06. Comparison requests use the same streamed 1 MiB
+selection requires future deployment records; compatibility currently targets explicit commits. Comparison requests use the same streamed 1 MiB
 JSON envelope limit as verification reports.
 
 Results separate `contentChanged` (exact bytes), `jsonChanged` (structural JSON, retaining array
@@ -217,8 +222,77 @@ message wording may vary.
 
 Removing a consumer requirement never becomes a provider fix. Even byte-only changes to a Pact
 are conservative `RequirementsChanged` under this exact-hash policy. These projections never
-change the original Failed/Error evidence. Full timeline/report filtering is PACT/11; explicit-version
-compatibility selection is PACT/06.
+change the original Failed/Error evidence. Full timeline/report filtering is PACT/11.
+
+## Decide compatibility for explicit versions
+
+The consumer first registers an immutable profile of **all required checks** using a token
+scoped to the consumer application. For example, POST `/api/verification-profiles`:
+
+```json
+{
+  "consumerApplicationId": "payments",
+  "providerApplicationId": "invoice",
+  "name": "required-pact",
+  "version": "1",
+  "checks": [{
+    "checkId": "pact/orders",
+    "verifierName": "pact-core",
+    "verifierVersion": "<exact installed version>",
+    "configurationSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  }]
+}
+```
+
+Profiles require 1-10 distinct check IDs. Integration/name/version identifies immutable content;
+changing checks returns 409 and requires a new profile version. Check order is irrelevant.
+Pin the returned profile ID in source CI configuration; do not discover an arbitrary or latest
+profile at release time. The registry enforces that chosen profile's complete check set. Reviewing
+whether that set covers the application's business requirements remains part of consumer CI.
+
+Either side may request a decision using a token scoped to its `sourceApplicationId`:
+
+```json
+{
+  "sourceApplicationId": "invoice",
+  "profileId": "11111111-1111-1111-1111-111111111111",
+  "rows": [{
+    "consumerCommitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "providerCommitSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "contractSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "ciRunId": "123",
+    "ciAttempt": 1,
+    "providerSourceRef": "refs/heads/main"
+  }]
+}
+```
+
+POST `/api/compatibility-decisions` resolves registered versions and that consumer version's
+integration binding. Select 1-10 distinct rows; each can use its own CI run/attempt. The exact
+hash must match an existing binding. A missing binding gives Unverified/ContractNotPublished;
+a missing selected check gives Unverified/MissingExecution. Wrong verifier/version/configuration
+or provider ref is Unverified with the observed report retained for diagnosis. Another commit,
+run, attempt, check, consumer version or Pact hash cannot supply the missing evidence.
+
+The `explicit-ci-execution-v1` policy requires every profile check to be applicable and Passed.
+Row and matrix aggregation uses **Failed > Error > Unverified > Passed**. `compatible` is true
+only for Passed and is scoped to the requested pairs/profile. Schema equality and schema
+comparisons do not participate. Results include per-check reasons, missing/unresolved check IDs,
+observed status/verifier, evidence IDs/URLs, original publication, payload hash and CI provenance.
+Follow each evidence URL for the complete immutable report and diagnostics.
+
+Equivalent observed evidence returns the same decision ID/time/publisher (200), even with
+reordered rows or another authorized requesting credential. Newly available selected evidence
+creates a new snapshot (201), preserving old Unverified/Failed decisions. A later passing rerun
+must be selected explicitly; it cannot overwrite an earlier failed attempt. GET by decision ID
+returns the stored policy, profile, row/matrix outcomes and evidence without reevaluation.
+
+Each request uses a streamed 1 MiB UTF-8 JSON envelope. Unknown/duplicate properties and empty,
+duplicate or oversized selections return 400; missing registered references return 404; storage
+outage returns 503. These decisions target full commit SHAs. Environment selectors and deployment
+records are not implemented; `compatible` does not assert that every deployed dependency was
+included. Official Pact execution/source CI gates remain PACT/08-09. See
+[ADR-0005](docs/adr/0005-explicit-compatibility-decisions.md).
 
 ## Run locally
 
@@ -273,7 +347,7 @@ The same scripts run in CI: locked restore with high/critical NuGet audit failur
 source/architecture checks, formatting, build, Domain/Application/Infrastructure/HTTP
 tests, real MongoDB concurrency/index/publication tests and an authenticated Docker Compose
 smoke covering immutable publication, exact-byte content retrieval, synthetic report ingestion,
-real pinned-tool comparison and evidence-based issue history.
+real pinned-tool comparison, evidence-based issue history and explicit-version compatibility decisions.
 Reports are under `artifacts/`. The integration fixture starts
 MongoDB 8 through Testcontainers. Alternatively, set `PACT_TEST_MONGODB` to a local
 test MongoDB connection; this does not skip the actual database check.

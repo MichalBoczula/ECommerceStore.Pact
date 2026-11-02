@@ -15,7 +15,7 @@ POST `/api/contract-comparisons` selects an integration, two publication IDs, so
 and baseline ref. Both publications must have the same kind and source application. Consumer
 Pact bindings must match that integration; provider OpenAPI must belong to its provider. The
 integration must exist. The before publication's full ref must equal the selected baseline;
-the after publication can use a different branch. Environment/deployment selection is PACT/06.
+the after publication can use a different branch. Environment/deployment selection requires deployment records; PACT/06 initially evaluates explicit commit pairs.
 
 The source application's authenticated publisher owns the write. The request cannot supply
 publisher identity. Every referenced artifact/version/publication is read through the existing
