@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - name: Restore locked dependencies and audit high/critical advisories
+        run: bash scripts/ci.sh restore
+      - name: Verify source and shell scripts
+        run: bash scripts/ci.sh source
+      - name: Verify formatting
+        run: bash scripts/ci.sh format
+      - name: Build
+        run: bash scripts/ci.sh build
+      - name: Run unit, HTTP and actual MongoDB tests
+        run: bash scripts/ci.sh test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: artifacts/tests/
+          if-no-files-found: warn
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  container:
+    needs: verify
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and smoke test API with MongoDB
+        run: bash scripts/ci.sh container
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-smoke
+          path: artifacts/container/
+          if-no-files-found: warn
+
+  quality-gate:
+    if: always()
+    needs: [verify, dependency-review, container]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all mandatory checks
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          CONTAINER_RESULT: ${{ needs.container.result }}
+          DEPENDENCY_RESULT: ${{ needs.dependency-review.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$VERIFY_RESULT" = success
+          test "$CONTAINER_RESULT" = success
+          expected=skipped
+          if [[ "$EVENT_NAME" == pull_request ]]; then expected=success; fi
+          test "$DEPENDENCY_RESULT" = "$expected"
