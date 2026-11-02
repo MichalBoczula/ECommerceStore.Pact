@@ -33,6 +33,10 @@ jobs:
         run: bash scripts/ci.sh format
       - name: Build
         run: bash scripts/ci.sh build
+      - name: Install pinned schema comparison tool
+        run: |
+          sh scripts/install-oasdiff.sh "$RUNNER_TEMP/pact-tools"
+          echo "$RUNNER_TEMP/pact-tools" >> "$GITHUB_PATH"
       - name: Run unit, HTTP and actual MongoDB tests
         run: bash scripts/ci.sh test
       - uses: actions/upload-artifact@v4

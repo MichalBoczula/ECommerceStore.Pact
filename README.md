@@ -3,14 +3,15 @@
 Versioned contract artifacts and compatibility history for the ECommerceStore applications.
 The delivery plan is in [TECHNICAL_TODO.md](TECHNICAL_TODO.md).
 
-## Current implementation: PACT/01-04
+## Current implementation: PACT/01-05
 
 ASP.NET Core 10 Minimal API, MongoDB configuration and bounded readiness checks,
 generated OpenAPI, ProblemDetails, local Compose and a GitHub Actions quality gate.
 Immutable application versions and directed consumer/provider integrations can now be
 registered and read from MongoDB. Immutable OpenAPI/Pact artifacts and publication provenance
 are stored separately and downloaded byte-for-byte. Provider CI can append immutable verification
-reports with structured diagnostics and retrieve their history. Compatibility selection is PACT/06;
+reports with structured diagnostics and retrieve their history. Explicit publication comparisons
+and evidence-based issue transitions are available. Compatibility selection is PACT/06;
 an accepted contract upload is not a passing test.
 
 | Endpoint | Behavior |
@@ -29,6 +30,9 @@ an accepted contract upload is not a passing test.
 | `POST /api/verification-runs` | Append a provider CI report; 201 new execution, 200 equivalent retry, 409 changed report for the same execution. |
 | `GET /api/verification-runs/{id}` | Read the original report and diagnostics. |
 | `GET /api/verification-runs?consumerApplicationId=...&providerApplicationId=...&contractSha256=...` | Bounded history for an explicit integration and Pact hash; optional `limit` (1-100) and `after` cursor. |
+| `POST /api/contract-comparisons` | Snapshot explicit before/after publications within an integration and selected branch baseline; 201 new, 200 retry. |
+| `GET /api/contract-comparisons/{id}` | Read an immutable comparison snapshot. |
+| `GET /api/issue-history?beforeRunId=...&afterRunId=...&baselineRef=refs/heads/main` | Compare explicit verification evidence and project issue transitions. |
 
 Health responses expose dependency statuses, never connection strings or driver
 exceptions. Unmatched routes return `application/problem+json` with a `traceId`.
@@ -162,6 +166,60 @@ History pages use ascending record IDs, not time or compatibility priority; `nex
 passed as `after`. With concurrent inserts, restart traversal to include earlier-sorted new IDs.
 See [ADR-0003](docs/adr/0003-verification-runs.md) for identities and status rules.
 
+## Compare contracts and issue history
+
+`POST /api/contract-comparisons` requires a publisher token scoped to `sourceApplicationId`:
+
+```json
+{
+  "sourceApplicationId": "invoice",
+  "consumerApplicationId": "payments",
+  "providerApplicationId": "invoice",
+  "beforePublicationId": "11111111-1111-1111-1111-111111111111",
+  "afterPublicationId": "22222222-2222-2222-2222-222222222222",
+  "baselineRef": "refs/heads/main"
+}
+```
+
+Select two existing publications of the same kind and source application. Provider OpenAPI
+belongs to the selected integration's provider; consumer Pact belongs to its consumer.
+The integration must be registered. `baselineRef` must match the **before publication's** ref;
+the candidate may come from a feature branch. There is no automatic latest baseline. Environment
+selection awaits deployment records in PACT/06. Comparison requests use the same streamed 1 MiB
+JSON envelope limit as verification reports.
+
+Results separate `contentChanged` (exact bytes), `jsonChanged` (structural JSON, retaining array
+order/number spellings), `schemaAssessment` and `consumerImpact`. OpenAPI analysis uses pinned
+**oasdiff 1.35.0** with external references disabled. Additive optional response fields have no
+breaking finding; required response-field removal is identified. `NoBreakingChangesDetected`
+is limited to the documented tool/profile, not proof that a consumer passes. `consumerImpact`
+is always `NotEvaluated` on a schema/content comparison. Consumer Pact gets structural content
+comparison with `NotAssessed` schema status; it is never converted into provider-generated expectations.
+
+Comparisons are immutable snapshots keyed by integration/publications/ref/profile. Retry preserves
+original ID, publisher, time and findings, including when the tool later becomes unavailable.
+Tool/version/timeout/output errors return 503 and do not store an empty safe result. No update/delete
+endpoint exists. See [ADR-0004](docs/adr/0004-contract-changes-and-issue-history.md) for supported
+requiredness/type/nullability/reference/composition semantics and conservative limitations.
+
+Issue history is a read-only projection of **two selected verification runs**. Pass their IDs
+and the before run's provider ref to `/api/issue-history`. The response includes both original
+reports, diagnostics/evidence and a versioned transition policy. The same issue is identified
+by integration, code, interaction, method/path, JSON path and expected JSON; actual values and
+message wording may vary.
+
+- `Appeared`: baseline Passed, candidate now reports the mismatch.
+- `Persisting`: both runs report the same requirement failing.
+- `Resolved`: candidate Passed against the exact same Pact hash, verifier/version/configuration and check.
+- `Unconfirmed`: an old issue is absent, but the candidate did not pass (including Error/Unverified).
+- `RequirementsChanged` / `VerifierChanged`: runs cannot prove a fix under this policy.
+- `Observed`: a candidate mismatch is present without a comparable passing baseline.
+
+Removing a consumer requirement never becomes a provider fix. Even byte-only changes to a Pact
+are conservative `RequirementsChanged` under this exact-hash policy. These projections never
+change the original Failed/Error evidence. Full timeline/report filtering is PACT/11; explicit-version
+compatibility selection is PACT/06.
+
 ## Run locally
 
 Requires Docker with Compose:
@@ -177,6 +235,18 @@ docker compose down
 The local-only stack binds API and MongoDB ports to loopback. MongoDB data is in
 the `pact-mongodb` volume; `docker compose down --volumes` removes that local data.
 Set `PACT_HTTP_PORT` or `PACT_MONGO_PORT` when the default ports are occupied.
+
+For host execution/tests, install the pinned comparison binary (Linux amd64/arm64):
+
+```bash
+sh scripts/install-oasdiff.sh "$PWD/artifacts/tools"
+export OASDIFF_PATH="$PWD/artifacts/tools/oasdiff"
+```
+
+The installer verifies committed SHA-256 checksums. On Windows/macOS, use the official 1.35.0
+release for your platform and set `OASDIFF_PATH`. `Comparison__Executable` can also select its
+absolute path. The API checks the executable's version before analysis. Docker/CI install it
+automatically; unavailable comparison tooling does not prevent health or registry reads/writes.
 
 To run the API on the host with .NET SDK 10:
 
@@ -202,7 +272,8 @@ bash scripts/verify.sh
 The same scripts run in CI: locked restore with high/critical NuGet audit failures,
 source/architecture checks, formatting, build, Domain/Application/Infrastructure/HTTP
 tests, real MongoDB concurrency/index/publication tests and an authenticated Docker Compose
-smoke covering immutable publication, exact-byte content retrieval and synthetic report ingestion/history.
+smoke covering immutable publication, exact-byte content retrieval, synthetic report ingestion,
+real pinned-tool comparison and evidence-based issue history.
 Reports are under `artifacts/`. The integration fixture starts
 MongoDB 8 through Testcontainers. Alternatively, set `PACT_TEST_MONGODB` to a local
 test MongoDB connection; this does not skip the actual database check.

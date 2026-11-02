@@ -1,5 +1,6 @@
 using ECommerceStore.Pact.Infrastructure.Contracts;
 using MongoDB.Driver;
+using ECommerceStore.Pact.Infrastructure.History;
 using ECommerceStore.Pact.Infrastructure.Verification;
 
 namespace ECommerceStore.Pact.Infrastructure.Registry;
@@ -44,6 +45,9 @@ internal sealed class RegistryIndexes(RegistryCollections collections) : IDispos
                     .Ascending(value => value.ProviderApplicationId).Ascending(value => value.ContractSha256).Ascending(value => value.Id),
                     new CreateIndexOptions { Name = "ix_verification_contract_history" })
             ], cancellationToken);
+            await collections.ContractComparisons.Indexes.CreateOneAsync(new CreateIndexModel<ContractComparisonDocument>(
+                Builders<ContractComparisonDocument>.IndexKeys.Ascending(value => value.Key),
+                new CreateIndexOptions { Name = "uq_contract_comparison", Unique = true }), cancellationToken: cancellationToken);
             _initialized = true;
         }
         finally
