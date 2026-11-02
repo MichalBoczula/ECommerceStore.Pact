@@ -569,13 +569,24 @@
       "ecommercestore.pact.api": {
         "type": "Project",
         "dependencies": {
+          "ECommerceStore.Pact.Application": "[1.0.0, )",
           "ECommerceStore.Pact.Infrastructure": "[1.0.0, )",
           "Microsoft.AspNetCore.OpenApi": "[10.0.14, )"
         }
       },
+      "ecommercestore.pact.application": {
+        "type": "Project",
+        "dependencies": {
+          "ECommerceStore.Pact.Domain": "[1.0.0, )"
+        }
+      },
+      "ecommercestore.pact.domain": {
+        "type": "Project"
+      },
       "ecommercestore.pact.infrastructure": {
         "type": "Project",
         "dependencies": {
+          "ECommerceStore.Pact.Application": "[1.0.0, )",
           "Microsoft.Extensions.Diagnostics.HealthChecks": "[10.0.14, )",
           "Microsoft.Extensions.Options.ConfigurationExtensions": "[10.0.14, )",
           "MongoDB.Driver": "[3.13.0, )"

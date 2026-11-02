@@ -5,8 +5,11 @@ to its backlog item. Commits, code, documentation and PR descriptions are in Eng
 
 - API owns HTTP request/result DTOs, validation responses, ProblemDetails and composition.
 - Infrastructure owns MongoDB documents, explicit mapping, indexes, drivers and repositories.
-- Introduce Domain and Application with PACT/02 behavior. Domain must not reference ASP.NET,
-  MongoDB, generated clients or infrastructure. Application owns use cases and ports.
+- Domain owns immutable version/integration identities and validation. It must not reference
+  ASP.NET, MongoDB, generated clients or infrastructure. Application owns use cases and ports.
+- Version metadata, including an omitted image digest, is immutable. Branch/ref belongs to
+  publication metadata. Integration registration declares a dependency, not compatibility.
+- Preserve atomic insert-only registration, unique indexes and concurrent retry/conflict checks.
 - Preserve immutable version/artifact identities and append-only verification history.
   Never use upload order or an unqualified latest version as a compatibility decision.
 - Use official Pact tooling in consumer/provider CI; do not implement a parallel matching engine.

@@ -1,4 +1,6 @@
+using ECommerceStore.Pact.Application;
 using ECommerceStore.Pact.Infrastructure.Mongo;
+using ECommerceStore.Pact.Infrastructure.Registry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -27,6 +29,10 @@ public static class DependencyInjection
         });
         services.AddSingleton(provider => provider.GetRequiredService<IMongoClient>()
             .GetDatabase(provider.GetRequiredService<IOptions<MongoOptions>>().Value.DatabaseName));
+        services.AddSingleton<RegistryCollections>();
+        services.AddSingleton<RegistryIndexes>();
+        services.AddSingleton<IApplicationVersionRepository, MongoApplicationVersionRepository>();
+        services.AddSingleton<IIntegrationRepository, MongoIntegrationRepository>();
         services.AddHealthChecks().AddCheck<MongoReadinessHealthCheck>("mongodb", tags: ["ready"]);
         return services;
     }

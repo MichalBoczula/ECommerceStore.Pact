@@ -5,8 +5,8 @@ a task done. Backend and one real CI integration precede the frontend.
 
 | Task | Package | Status | Depends on |
 | --- | --- | --- | --- |
-| PACT/01 | API, MongoDB and verification foundation | In progress | - |
-| PACT/02 | Application versions and integration identities | Planned | 01 |
+| PACT/01 | API, MongoDB and verification foundation | Done (PR #1) | - |
+| PACT/02 | Application versions and integration identities | In progress | 01 |
 | PACT/03 | Immutable contract publication and retrieval | Planned | 02 |
 | PACT/04 | Verification runs and structured issues | Planned | 03 |
 | PACT/05 | Contract changes and issue history | Planned | 03, 04 |

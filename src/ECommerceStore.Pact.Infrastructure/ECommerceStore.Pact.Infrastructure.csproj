@@ -4,4 +4,8 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.14" />
     <PackageReference Include="MongoDB.Driver" Version="3.13.0" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../ECommerceStore.Pact.Application/ECommerceStore.Pact.Application.csproj" />
+    <InternalsVisibleTo Include="ECommerceStore.Pact.Infrastructure.Tests" />
+  </ItemGroup>
 </Project>

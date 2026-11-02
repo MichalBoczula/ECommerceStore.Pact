@@ -1,10 +1,14 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/ECommerceStore.Pact.Api/ECommerceStore.Pact.Api.csproj" />
+    <Project Path="src/ECommerceStore.Pact.Application/ECommerceStore.Pact.Application.csproj" />
+    <Project Path="src/ECommerceStore.Pact.Domain/ECommerceStore.Pact.Domain.csproj" />
     <Project Path="src/ECommerceStore.Pact.Infrastructure/ECommerceStore.Pact.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ECommerceStore.Pact.Api.Tests/ECommerceStore.Pact.Api.Tests.csproj" />
+    <Project Path="tests/ECommerceStore.Pact.Application.Tests/ECommerceStore.Pact.Application.Tests.csproj" />
+    <Project Path="tests/ECommerceStore.Pact.Domain.Tests/ECommerceStore.Pact.Domain.Tests.csproj" />
     <Project Path="tests/ECommerceStore.Pact.Infrastructure.Tests/ECommerceStore.Pact.Infrastructure.Tests.csproj" />
     <Project Path="tests/ECommerceStore.Pact.IntegrationTests/ECommerceStore.Pact.IntegrationTests.csproj" />
   </Folder>
