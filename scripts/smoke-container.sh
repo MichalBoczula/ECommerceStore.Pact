@@ -19,6 +19,7 @@ trap cleanup EXIT
 
 docker compose -p "$stack" config --quiet
 if [[ "${PACT_IMAGE_PREBUILT:-false}" == true ]]; then
+  docker compose -p "$stack" pull mongodb
   docker compose -p "$stack" up --no-build --pull never -d
 else
   docker compose -p "$stack" up --build -d

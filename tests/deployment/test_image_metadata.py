@@ -44,6 +44,6 @@ class ImageMetadataTests(unittest.TestCase):
         self.assertNotEqual(result["digest"], result["imageId"])
 
     def test_bad_repository_and_digest_are_rejected(self):
-        for repository, digest in [("--malicious", "sha256:" + "e" * 64), ("mb0101/pact", "latest")]:
+        for repository, digest in [("registry.example/pact", "sha256:" + "e" * 64), ("--malicious", "sha256:" + "e" * 64), ("mb0101/pact", "latest")]:
             with self.subTest(repository=repository, digest=digest), self.assertRaises(ValueError):
                 module.receipt(self.metadata, repository, digest)

@@ -28,7 +28,7 @@ def verify(metadata, inspect, commit):
 
 
 def receipt(metadata, repository, digest):
-    if not re.fullmatch(r"[a-z0-9]+(?:[._-][a-z0-9]+)*/[a-z0-9]+(?:[._-][a-z0-9]+)*", repository):
+    if not re.fullmatch(r"[a-z0-9]+(?:[_-][a-z0-9]+)*/[a-z0-9]+(?:[._-][a-z0-9]+)*", repository):
         raise ValueError("Use a Docker Hub namespace/repository.")
     if not re.fullmatch(r"sha256:[a-f0-9]{64}", digest):
         raise ValueError("A registry manifest digest is required.")
