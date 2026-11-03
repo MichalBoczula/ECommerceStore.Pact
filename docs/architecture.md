@@ -35,6 +35,13 @@ and registry publication remain PACT/09; no provider compatibility is inferred f
 
 ## Model and delivery state
 
+WEB/02 adds bounded dashboard discovery over these existing records: paginated applications,
+versions, declarations, publications, reports, profiles, comparison snapshots and decisions,
+plus graph pages and separately scoped report counts. API DTOs map Application read models;
+Infrastructure owns MongoDB projections/indexes. No artifact bytes are loaded for browsing,
+no latest upload/run becomes a compatibility policy, and no business record is written by GETs.
+See [ADR-0007](adr/0007-dashboard-read-models.md) and [the browsing contract](registry-browsing.md).
+
 | Record | Identity and responsibility |
 | --- | --- |
 | ApplicationVersion (implemented) | Application + immutable full commit SHA, repository URL, optional immutable image digest. |

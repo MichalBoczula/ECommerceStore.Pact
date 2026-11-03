@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using ECommerceStore.Pact.Api.Reporting;
+using ECommerceStore.Pact.Application.Reporting;
 using ECommerceStore.Pact.Api.Compatibility;
 using ECommerceStore.Pact.Application.Compatibility;
 using ECommerceStore.Pact.Api.History;
@@ -65,6 +67,7 @@ builder.Services.AddScoped<ContractComparisonService>();
 builder.Services.AddScoped<IssueHistoryService>();
 builder.Services.AddScoped<VerificationProfileService>();
 builder.Services.AddScoped<CompatibilityDecisionService>();
+builder.Services.AddScoped<RegistryReadService>();
 builder.Services.AddSingleton<IValidateOptions<RegistryAuthOptions>, RegistryAuthValidator>();
 builder.Services.AddOptions<RegistryAuthOptions>().Bind(builder.Configuration.GetSection("RegistryAuth")).ValidateOnStart();
 builder.Services.AddAuthentication(PublisherAuthenticationHandler.SchemeName)
@@ -85,6 +88,7 @@ app.MapContractEndpoints();
 app.MapVerificationEndpoints();
 app.MapHistoryEndpoints();
 app.MapCompatibilityEndpoints();
+app.MapRegistryReadEndpoints();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = _ => false,

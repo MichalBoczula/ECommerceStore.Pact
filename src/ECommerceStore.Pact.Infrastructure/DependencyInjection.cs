@@ -9,6 +9,8 @@ using ECommerceStore.Pact.Application.Contracts;
 using ECommerceStore.Pact.Infrastructure.Contracts;
 using ECommerceStore.Pact.Infrastructure.Mongo;
 using ECommerceStore.Pact.Infrastructure.Registry;
+using ECommerceStore.Pact.Application.Reporting;
+using ECommerceStore.Pact.Infrastructure.Reporting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -39,6 +41,7 @@ public static class DependencyInjection
             .GetDatabase(provider.GetRequiredService<IOptions<MongoOptions>>().Value.DatabaseName));
         services.AddSingleton<RegistryCollections>();
         services.AddSingleton<RegistryIndexes>();
+        services.AddSingleton<IRegistryReadRepository, MongoRegistryReadRepository>();
         services.AddSingleton<IApplicationVersionRepository, MongoApplicationVersionRepository>();
         services.AddSingleton<IIntegrationRepository, MongoIntegrationRepository>();
         services.AddSingleton<IContractRepository, MongoContractRepository>();

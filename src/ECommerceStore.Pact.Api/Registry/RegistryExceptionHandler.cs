@@ -50,7 +50,9 @@ public sealed class RegistryExceptionHandler : IExceptionHandler
             RegistryReferenceNotFoundException missing => new ProblemDetails { Status = 404, Title = "Referenced registry record not found.", Extensions = { ["code"] = missing.Code } },
             RegistryForbiddenException => new ProblemDetails { Status = 403, Title = "Publisher application scope denied." },
             ContractPayloadTooLargeException => new ProblemDetails { Status = 413, Title = "Contract upload too large.", Detail = "Contract content is limited to 1 MiB and the JSON upload envelope to 2 MiB." },
-            BadHttpRequestException { StatusCode: 400 } => Validation("request", "A valid JSON request with all required fields is required."),
+            BadHttpRequestException { StatusCode: 400 } => HttpMethods.IsGet(httpContext.Request.Method)
+                ? Validation("query", "Valid route and query parameter values are required.")
+                : Validation("request", "A valid JSON request with all required fields is required."),
             BadHttpRequestException badRequest => new ProblemDetails
             {
                 Status = badRequest.StatusCode,
