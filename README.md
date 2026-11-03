@@ -15,6 +15,13 @@ and evidence-based issue transitions are available. Compatibility decisions now 
 version pairs and CI executions against a pinned required-check profile;
 an accepted contract upload is not a passing test.
 
+WEB/02 adds paginated dashboard discovery and dependency/overview projections. Start at
+`GET /api/applications`, `/api/integrations`, `/api/contract-publications`, or
+`/api/reports/verification-runs` without already knowing record IDs/hashes.
+Stored profiles, comparisons and decisions can also be browsed. The full query/filter contract,
+opaque pagination and evidence semantics are in [registry browsing](docs/registry-browsing.md).
+Graph/overview report counts never replace explicit-version compatibility decisions.
+
 | Endpoint | Behavior |
 | --- | --- |
 | `GET /health/live` | 200 when the process serves requests; does not contact MongoDB. |

@@ -55,6 +55,22 @@ internal sealed class RegistryIndexes(RegistryCollections collections) : IDispos
             await collections.CompatibilityDecisions.Indexes.CreateOneAsync(new CreateIndexModel<CompatibilityDecisionDocument>(
                 Builders<CompatibilityDecisionDocument>.IndexKeys.Ascending(value => value.Key),
                 new CreateIndexOptions { Name = "uq_compatibility_decision", Unique = true }), cancellationToken: cancellationToken);
+            await BrowseIndex(collections.Versions, "ix_versions_browse", "RegisteredAtUtc", cancellationToken);
+            await BrowseIndex(collections.Versions, "ix_versions_application_browse", "RegisteredAtUtc", cancellationToken, "ApplicationId");
+            await BrowseIndex(collections.Integrations, "ix_integrations_browse", "RegisteredAtUtc", cancellationToken);
+            await BrowseIndex(collections.Integrations, "ix_integrations_consumer_browse", "RegisteredAtUtc", cancellationToken, "ConsumerApplicationId");
+            await BrowseIndex(collections.Integrations, "ix_integrations_provider_browse", "RegisteredAtUtc", cancellationToken, "ProviderApplicationId");
+            await BrowseIndex(collections.ContractPublications, "ix_publications_browse", "PublishedAtUtc", cancellationToken);
+            await collections.ContractBindings.Indexes.CreateOneAsync(new CreateIndexModel<ContractBindingDocument>(
+                Builders<ContractBindingDocument>.IndexKeys.Ascending(v => v.SourceApplicationId).Ascending(v => v.Kind).Ascending(v => v.ArtifactSha256),
+                new CreateIndexOptions { Name = "ix_bindings_source_kind_hash" }), cancellationToken: cancellationToken);
+            await BrowseIndex(collections.VerificationRuns, "ix_reports_browse", "RecordedAtUtc", cancellationToken);
+            await BrowseIndex(collections.VerificationRuns, "ix_reports_integration_browse", "RecordedAtUtc", cancellationToken, "ConsumerApplicationId", "ProviderApplicationId");
+            await BrowseIndex(collections.VerificationRuns, "ix_reports_versions_browse", "RecordedAtUtc", cancellationToken,
+                "ConsumerApplicationId", "ProviderApplicationId", "ConsumerCommitSha", "ProviderCommitSha", "ContractSha256");
+            await BrowseIndex(collections.VerificationProfiles, "ix_profiles_browse", "RegisteredAtUtc", cancellationToken);
+            await BrowseIndex(collections.ContractComparisons, "ix_comparisons_browse", "ComparedAtUtc", cancellationToken);
+            await BrowseIndex(collections.CompatibilityDecisions, "ix_decisions_browse", "EvaluatedAtUtc", cancellationToken);
             _initialized = true;
         }
         finally
@@ -64,4 +80,14 @@ internal sealed class RegistryIndexes(RegistryCollections collections) : IDispos
     }
 
     public void Dispose() => _gate.Dispose();
+
+    private static Task<string> BrowseIndex<T>(IMongoCollection<T> collection, string name, string timestamp,
+        CancellationToken cancellationToken, params string[] prefix)
+    {
+        var keys = prefix.Select(field => Builders<T>.IndexKeys.Ascending(field)).ToList();
+        keys.Add(Builders<T>.IndexKeys.Descending(timestamp));
+        keys.Add(Builders<T>.IndexKeys.Ascending("_id"));
+        return collection.Indexes.CreateOneAsync(new CreateIndexModel<T>(Builders<T>.IndexKeys.Combine(keys),
+            new CreateIndexOptions { Name = name }), cancellationToken: cancellationToken);
+    }
 }
