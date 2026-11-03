@@ -50,6 +50,15 @@ not mean that its contract passed verification. All POSTs now require a Bearer p
 authorized for the target application (integration declarations are owned by their consumer).
 Public reads and health require no credentials. Empty publisher configuration denies all writes.
 
+## Payments consumer pilot (PACT/08)
+
+[Payments PR #49](https://github.com/MichalBoczula/ECommerceStorePayments/pull/49) adds five
+consumer-owned Pact HTTP interactions through the production Kiota, precise-parser and mapping
+boundary. Its required ExternalProviders job exports reproducible spec-v4 JSON and a SHA-256
+manifest. No registry deployment is required. See the [pilot guide](docs/payments-consumer-pilot.md)
+for local execution, exact artifact selection and provider-state handoff. Invoice verification
+and registry publication remain PACT/09; consumer mock success alone is not compatibility evidence.
+
 ## Register a version and integration
 
 ```bash
