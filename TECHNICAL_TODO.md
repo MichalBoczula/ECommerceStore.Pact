@@ -12,7 +12,7 @@ a task done. Backend and one real CI integration precede the frontend.
 | PACT/05 | Contract changes and issue history | Done (PR #5) | 03, 04 |
 | PACT/06 | Compatibility decisions for explicit versions | Done (PR #6) | 04, 05 |
 | PACT/07 | Image publication and Azure deployment configuration | In progress (publication/apply pending) | 06 |
-| PACT/08 | Payments consumer Pact pilot | Planned | 03 |
+| PACT/08 | Payments consumer Pact pilot | Implemented (Payments PR #49) | 03 |
 | PACT/09 | Invoice verification and complete CI pilot | Planned | 06, 07, 08 |
 | PACT/10 | Remaining application integrations | Planned | 09 |
 | PACT/11 | Report and dependency graph API | Planned | 05, 06, 10 |
@@ -99,6 +99,10 @@ a task done. Backend and one real CI integration precede the frontend.
   deployment procedure and a reachable readiness endpoint after deployment.
 
 ## PACT/08 - Payments consumer Pact pilot
+
+Implementation: [Payments PR #49](https://github.com/MichalBoczula/ECommerceStorePayments/pull/49);
+[consumer execution and provider-state handoff](docs/payments-consumer-pilot.md). Provider verification
+and registry publication remain PACT/09. PACT/07 cloud acceptance remains independent and pending.
 
 - In Payments, execute the real HttpOrderReader, generated Kiota client, production
   decimal parser and mapper against a Pact mock provider for GET /orders/{orderId}.

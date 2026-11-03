@@ -1,11 +1,12 @@
 # Integration inventory
 
-Source inspection baseline: 2026-11-02. These are planned coverage edges; no row in this
-inventory claims that Pact tests are already implemented.
+Source inspection baseline: 2026-11-02, consumer pilot updated 2026-11-03. Payments Orders
+read has consumer Pact implementation in [Payments PR #49](https://github.com/MichalBoczula/ECommerceStorePayments/pull/49);
+provider verification is pending. Other rows remain planned coverage edges.
 
 | Consumer | Provider / transport | Production boundary | Planned scope |
 | --- | --- | --- | --- |
-| Payments | Invoice | HttpOrderReader | GET /orders/{orderId}; first pilot. |
+| Payments | Invoice | HttpOrderReader | GET /orders/{orderId}; consumer Pact implemented, provider verification pending (PACT/09). |
 | Payments | Invoice | HttpFulfillmentOrders, HttpFulfillmentInvoices | Order status and invoice lookup/creation. |
 | Invoice | ProductsCatalog | ExternalProductServiceClient, ProductVersionMapping | POST /mobile-phones/by-ids and snapshot mapping. |
 | Web | ProductsCatalog via BFF | MobilePhonesKiotaRepository and mappers | List, details, IDs, filter, top products. |

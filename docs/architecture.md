@@ -27,6 +27,12 @@ infrastructure with scoped ACA secret references. Hosted readiness is verified a
 applies the reviewed plan; mocked plans and PR CI do not establish an Azure deployment.
 See [deployment instructions](deployment.md) and [ADR-0006](adr/0006-image-publication-and-hosting.md).
 
+PACT/08 consumer execution belongs to Payments. Its real HttpOrderReader/Kiota/precise-parser
+boundary generates a deterministic five-interaction Pact over official Pact HTTP, with a hash
+manifest in the existing required source CI suite. [Pilot details](payments-consumer-pilot.md)
+record consumed fields, currency examples and parameterized provider states. Invoice verification
+and registry publication remain PACT/09; no provider compatibility is inferred from this mock.
+
 ## Model and delivery state
 
 | Record | Identity and responsibility |
