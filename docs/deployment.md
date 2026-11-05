@@ -19,6 +19,12 @@ job builds a Linux/amd64 candidate once, smoke-tests that tag with real MongoDB 
 same image with Trivy, failing on fixed HIGH/CRITICAL findings and retaining the scan report.
 Tests and scanning complete before image identity/archive creation.
 
+The runtime build upgrades the inherited Ubuntu APT packages before switching to its non-root
+user. This applies [CVE-2026-109518's security update](https://ubuntu.com/security/CVE-2026-109518)
+(2.8.4ubuntu0.1 or newer on Ubuntu 24.04) even when the .NET base image still contains 2.8.3.
+APT retries are disabled during that upgrade as recommended by Ubuntu. The fixed-HIGH/CRITICAL
+image scan validates the resulting packages.
+
 On a main push only, publication waits for the successful quality gate and container job.
 It downloads the current run's archive, loads it and verifies platform, image ID, OCI source
 revision and workflow commit. It pushes full commit and `latest` tags without rebuilding,
