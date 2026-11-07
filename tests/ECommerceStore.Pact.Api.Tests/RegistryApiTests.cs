@@ -66,6 +66,21 @@ public sealed class RegistryApiTests(RegistryApiFactory factory) : IClassFixture
     }
 
     [Fact]
+    public async Task SwaggerUiUsesTheExistingOpenApiDocumentInProduction()
+    {
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = null;
+
+        using var response = await client.GetAsync("/swagger");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("swagger-ui-bundle.js", await response.Content.ReadAsStringAsync());
+
+        var configuration = await client.GetStringAsync("/swagger/index.js");
+        Assert.Contains("../openapi/v1.json", configuration);
+    }
+
+    [Fact]
     public async Task UnknownRouteReturnsProblemDetailsWithTraceId()
     {
         using var client = factory.CreateClient();

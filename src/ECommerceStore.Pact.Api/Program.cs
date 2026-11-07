@@ -83,6 +83,7 @@ app.UseStatusCodePages();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapOpenApi();
+app.UseSwaggerUI(options => options.SwaggerEndpoint("../openapi/v1.json", "ECommerceStore Pact Registry v1"));
 app.MapRegistryEndpoints();
 app.MapContractEndpoints();
 app.MapVerificationEndpoints();
