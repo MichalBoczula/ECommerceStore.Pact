@@ -113,27 +113,35 @@ internal sealed class MongoRegistryReadRepository(IMongoDatabase database, Regis
         }, cancellationToken);
     }
 
-    public Task<RegistrySlice<DependencyEvidence>> DependenciesAsync(RegistryReadQuery query, CancellationToken cancellationToken)
+    public async Task<RegistrySlice<DependencyEvidence>> DependenciesAsync(RegistryReadQuery query, CancellationToken cancellationToken)
     {
-        var pipeline = Page(IntegrationFilter(query.Filter), "RegisteredAtUtc", query);
+        var page = await IntegrationsAsync(query, cancellationToken);
+        if (page.Items.Count == 0) return new([], page.Next);
+
+        // Count reports only for the directed pairs returned on this page.
+        var pairs = new BsonArray(page.Items.Select(edge => Match(
+            ("ConsumerApplicationId", edge.Identity.ConsumerApplicationId),
+            ("ProviderApplicationId", edge.Identity.ProviderApplicationId))));
         var report = RunFilter(query.Filter with { ApplicationId = null, ConsumerApplicationId = null, ProviderApplicationId = null });
-        pipeline.Add(new("$lookup", new BsonDocument
-        {
-            ["from"] = "verification_runs",
-            ["let"] = new BsonDocument { ["consumer"] = "$ConsumerApplicationId", ["provider"] = "$ProviderApplicationId" },
-            ["pipeline"] = new BsonArray
+        BsonDocument[] pipeline =
+        [
+            new("$match", And([report, new BsonDocument("$or", pairs)])),
+            CountStatuses(new BsonDocument
             {
-                new BsonDocument("$match", And([report, new BsonDocument("$expr", new BsonDocument("$and", new BsonArray
-                {
-                    new BsonDocument("$eq", new BsonArray { "$ConsumerApplicationId", "$$consumer" }),
-                    new BsonDocument("$eq", new BsonArray { "$ProviderApplicationId", "$$provider" })
-                }))])),
-                CountStatuses()
-            },
-            ["as"] = "ReportCounts"
-        }));
-        return PageAsync("integrations", pipeline, query, "RegisteredAtUtc", d =>
-            new DependencyEvidence(ReadIntegration(d), Counts(d["ReportCounts"].AsBsonArray.Select(v => v.AsBsonDocument))), cancellationToken);
+                ["Consumer"] = "$ConsumerApplicationId",
+                ["Provider"] = "$ProviderApplicationId",
+                ["Status"] = "$Status"
+            })
+        ];
+        var groups = await Read(() => Aggregate("verification_runs", pipeline, cancellationToken), cancellationToken);
+        var counts = groups.GroupBy(row =>
+        {
+            var key = row["_id"].AsBsonDocument;
+            return new IntegrationIdentity(S(key, "Consumer"), S(key, "Provider"));
+        }).ToDictionary(pair => pair.Key, pair => Counts(pair, row => S(row["_id"].AsBsonDocument, "Status")));
+
+        var noReports = new VerificationCounts(0, 0, 0, 0);
+        return new(page.Items.Select(edge => new DependencyEvidence(edge, counts.GetValueOrDefault(edge.Identity, noReports))).ToArray(), page.Next);
     }
 
     public Task<InventoryCounts> InventoryAsync(CancellationToken cancellationToken) => Read(async () =>
@@ -146,7 +154,8 @@ internal sealed class MongoRegistryReadRepository(IMongoDatabase database, Regis
     }, cancellationToken);
 
     public Task<VerificationCounts> ReportsAsync(RegistryReadFilter filter, CancellationToken cancellationToken) => Read(async () =>
-        Counts(await Aggregate("verification_runs", [new("$match", RunFilter(filter)), CountStatuses()], cancellationToken)), cancellationToken);
+        Counts(await Aggregate("verification_runs", [new("$match", RunFilter(filter)), CountStatuses("$Status")], cancellationToken),
+            row => S(row, "_id")), cancellationToken);
 
     private Task<RegistrySlice<T>> PageAsync<T>(string collection, IEnumerable<BsonDocument> pipeline, RegistryReadQuery query, string? time,
         Func<BsonDocument, T> map, CancellationToken cancellationToken) => Read(async () =>
@@ -220,10 +229,10 @@ internal sealed class MongoRegistryReadRepository(IMongoDatabase database, Regis
 
     private static Integration ReadIntegration(BsonDocument d) => Integration.Rehydrate(Id(d),
         new IntegrationIdentity(S(d, "ConsumerApplicationId"), S(d, "ProviderApplicationId")), Time(d, "RegisteredAtUtc"));
-    private static BsonDocument CountStatuses() => new("$group", new BsonDocument { ["_id"] = "$Status", ["Count"] = new BsonDocument("$sum", 1) });
-    private static VerificationCounts Counts(IEnumerable<BsonDocument> documents)
+    private static BsonDocument CountStatuses(BsonValue key) => new("$group", new BsonDocument { ["_id"] = key, ["Count"] = new BsonDocument("$sum", 1) });
+    private static VerificationCounts Counts(IEnumerable<BsonDocument> documents, Func<BsonDocument, string> status)
     {
-        var counts = documents.ToDictionary(d => S(d, "_id"), d => d["Count"].ToInt64(), StringComparer.Ordinal);
+        var counts = documents.ToDictionary(status, d => d["Count"].ToInt64(), StringComparer.Ordinal);
         if (counts.Keys.Any(key => key is not ("Passed" or "Failed" or "Error" or "Unverified")))
             throw new InvalidOperationException("Stored verification status is invalid.");
         return new(counts.GetValueOrDefault("Passed"), counts.GetValueOrDefault("Failed"), counts.GetValueOrDefault("Error"), counts.GetValueOrDefault("Unverified"));
