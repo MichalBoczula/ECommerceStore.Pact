@@ -15,7 +15,7 @@ a task done. Backend and one real CI integration precede the frontend.
 | PACT/08 | Payments consumer Pact pilot | Implemented (Payments PR #49) | 03 |
 | PACT/09 | Invoice verification and complete CI pilot | Passing source-CI evidence published. Provider OpenAPI and failure-to-fix acceptance pending. | 06, 07, 08 |
 | PACT/10 | Remaining application integrations | Done. [Verified operations and gaps](docs/integrations.md) | 09 |
-| PACT/11 | Report and dependency graph API | Partially implemented: WEB/02 browsing; full source-CI/report acceptance pending | 05, 06, 10 |
+| PACT/11 | Report and dependency graph API | Graph and failure-to-fix API path implemented. Hosted source-CI acceptance pending. | 05, 06, 10 |
 | PACT/12 | Frontend graph and history views | Planned | 11 |
 | WEB/02 | Dashboard browsing/read-model foundation | Implemented; PR verification pending | 05, 06 |
 
@@ -143,8 +143,9 @@ remaining operation-level gaps.
 
 WEB/02 delivers the early [browsing/read-model foundation](docs/registry-browsing.md) needed by
 the companion Angular repository: paginated discovery, filtered report/issue lookup, saved
-comparison/decision discovery, declared dependency pages and scoped report counts. It does not
-mark the full PACT/11 acceptance complete or move PACT/09-10 to Done.
+comparison/decision discovery, declared dependency pages and scoped report counts. PACT/11
+counts reports for the selected graph page and exercises the missing-field-to-fix path through
+the HTTP API and MongoDB. Hosted source-CI acceptance remains pending.
 
 - Paginated run/issue histories, explicit-version compatibility matrix, contract diffs,
   affected consumers, provenance links and application/integration graph projections.

@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ECommerceStore.Pact.Api.Compatibility;
 using ECommerceStore.Pact.Api.Contracts;
+using ECommerceStore.Pact.Api.History;
 using ECommerceStore.Pact.Api.Registry;
 using ECommerceStore.Pact.Api.Reporting;
 using ECommerceStore.Pact.Api.Verification;
@@ -144,23 +145,56 @@ public sealed class RegistryBrowseTests(MongoFixture mongo) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ReportSearchMatchesCodeAndPathOnOneIssueAndPreservesEveryOriginalExecution()
+    public async Task GraphAndReportSearchLeadFromAMissingFieldToTheVerifiedFix()
     {
-        await Seed(); var publication = await Publish(true, Sha, ContractSamples.Pact3);
+        await Seed(); await Edge("web", "invoice");
+        var publication = await Publish(true, Sha, ContractSamples.Pact3);
         var failed = await Run(publication, "Failed", "100");
         await Run(publication, "Failed", "101", crossIssues: true);
-        await Run(publication, "Passed", "102", NextSha);
+        var passed = await Run(publication, "Passed", "102", NextSha);
         await Run(publication, "Error", "103"); await Run(publication, "Unverified", "104");
-        var query = "/api/reports/verification-runs?consumerApplicationId=payments&providerApplicationId=invoice&issueCode=missing_field&jsonPath=" + Uri.EscapeDataString("$.body.totalAmount");
-        var matching = await Get<RegistryPageResultDto<VerificationSummaryResultDto>>(query);
+
+        var graphUrl = "/api/reports/dependencies?providerApplicationId=invoice&limit=1&issueCode=missing_field&jsonPath=" + Uri.EscapeDataString("$.body.totalAmount");
+        var page = await Get<DependencyGraphResultDto>(graphUrl);
+        Assert.NotNull(page.NextCursor);
+        var next = await Get<DependencyGraphResultDto>(graphUrl + "&after=" + page.NextCursor);
+        Assert.Null(next.NextCursor);
+        var edges = new[] { Assert.Single(page.Edges), Assert.Single(next.Edges) };
+        var affected = Assert.Single(edges, edge => edge.Integration.ConsumerApplicationId == "payments");
+        Assert.Equal(new VerificationCountsResultDto(0, 1, 0, 0, 1), affected.MatchingReports);
+        Assert.Equal(0, Assert.Single(edges, edge => edge.Integration.ConsumerApplicationId == "web").MatchingReports.Total);
+        Assert.Equal("Declared", affected.Relationship);
+        Assert.Equal(publication.Id, Assert.Single((await Get<RegistryPageResultDto<PublicationSummaryResultDto>>(affected.PublicationsUrl)).Items).Id);
+
+        var matching = await Get<RegistryPageResultDto<VerificationSummaryResultDto>>(affected.ReportsUrl);
         Assert.Equal(failed.Id, Assert.Single(matching.Items).Id);
         var detail = await Get<VerificationRunResultDto>(matching.Items[0].DetailUrl);
-        Assert.Equal("Failed", detail.Status); Assert.False(Assert.Single(detail.Issues).ActualPresent); Assert.Equal(failed.ContractSha256, detail.ContractSha256);
+        Assert.Equal("Failed", detail.Status);
+        var issue = Assert.Single(detail.Issues);
+        Assert.Equal("$.body.totalAmount", issue.JsonPath);
+        Assert.Equal(12.34m, issue.Expected.GetDecimal());
+        Assert.False(issue.ActualPresent);
+        Assert.Equal(publication.ArtifactSha256, detail.ContractSha256);
+        Assert.Equal(Sha, detail.ProviderCommitSha);
+
+        var fixedReports = await Get<RegistryPageResultDto<VerificationSummaryResultDto>>(
+            $"/api/reports/verification-runs?consumerApplicationId=payments&providerApplicationId=invoice&providerCommitSha={NextSha}&contractSha256={publication.ArtifactSha256}&status=passed&ciRunId=102&ciAttempt=1&ciCheckId=pact%2Forders");
+        var candidate = Assert.Single(fixedReports.Items);
+        Assert.Equal(passed.Id, candidate.Id);
+        var history = await Get<IssueHistoryResultDto>(
+            $"/api/issue-history?beforeRunId={detail.Id:D}&afterRunId={candidate.Id:D}&baselineRef=refs%2Fheads%2Fmain");
+        Assert.True(history.Comparable);
+        Assert.Equal("Failed", history.Before.Status);
+        Assert.Equal("Passed", history.After.Status);
+        Assert.Equal(NextSha, history.After.ProviderCommitSha);
+        var resolution = Assert.Single(history.Issues);
+        Assert.Equal("Resolved", resolution.Transition);
+        Assert.Equal(issue.JsonPath, resolution.Before!.JsonPath);
+        Assert.Null(resolution.After);
+
         var all = await Get<RegistryPageResultDto<VerificationSummaryResultDto>>("/api/reports/verification-runs?applicationId=invoice");
         Assert.Equal(5, all.Items.Count); Assert.Equal(4, all.Items.Select(r => r.Status).Distinct().Count());
-        Assert.Single((await Get<RegistryPageResultDto<VerificationSummaryResultDto>>(
-            "/api/reports/verification-runs?providerCommitSha=" + NextSha + "&status=passed&ciRunId=102&ciAttempt=1&ciCheckId=pact%2Forders")).Items);
-        using var json = JsonDocument.Parse(await _read.GetStringAsync(query));
+        using var json = JsonDocument.Parse(await _read.GetStringAsync(affected.ReportsUrl));
         Assert.False(json.RootElement.GetProperty("items")[0].TryGetProperty("issues", out _));
         Assert.Equal(5, await _database.GetCollection<BsonDocument>("verification_runs").CountDocumentsAsync(FilterDefinition<BsonDocument>.Empty));
     }

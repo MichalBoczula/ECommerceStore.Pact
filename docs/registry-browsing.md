@@ -70,7 +70,23 @@ into a runtime trace or deployment decision. A declared party without versions s
 its versions link returns an empty page. Evidence selectors do not hide declared gaps. The `nodes`
 array covers only the returned edge page, and repeated nodes across pages must be merged by ID.
 
+The graph reads the integration page first, then groups matching reports by directed pair and
+status in a single query for that page. Edges with zero matches retain their position and links.
+
 Global overview inventory counts registered applications/versions, declared integrations, publications,
 profiles, stored comparisons and stored decisions. Evidence filters affect `matchingReports`, not
 `inventory`. Reads/counts are nontransactional; restart traversal to observe newly inserted records.
 See [ADR-0007](adr/0007-dashboard-read-models.md) for bounds, integrity and consistency rules.
+
+## Follow a missing field to a confirmed fix
+
+1. Request `/api/reports/dependencies?providerApplicationId=invoice&jsonPath=%24.totalAmount`.
+   The matching report count identifies the affected edge. Follow its `reportsUrl` to the
+   failing execution and its `detailUrl` to see the expected value and whether it was present.
+   The edge's `publicationsUrl` and the report's `consumerPublicationUrl` link to the contracts.
+2. Browse the same integration with the fixed provider's exact commit, the failed report's
+   `contractSha256`, `status=Passed` and the candidate CI execution selectors. Keep the original
+   failure's run ID and the selected passing run ID.
+3. Request `/api/issue-history?beforeRunId={failedRunId}&afterRunId={passedRunId}&baselineRef={baselineRef}`,
+   using the failing run's provider ref as the baseline. The fix is confirmed when the result
+   has `comparable: true` and the missing-field diagnostic has transition `Resolved`.
