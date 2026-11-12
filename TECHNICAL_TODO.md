@@ -13,8 +13,8 @@ a task done. Backend and one real CI integration precede the frontend.
 | PACT/06 | Compatibility decisions for explicit versions | Done (PR #6) | 04, 05 |
 | PACT/07 | Image publication and Azure deployment configuration | In progress (publication/apply pending) | 06 |
 | PACT/08 | Payments consumer Pact pilot | Implemented (Payments PR #49) | 03 |
-| PACT/09 | Invoice verification and complete CI pilot | Planned | 06, 07, 08 |
-| PACT/10 | Remaining application integrations | Planned | 09 |
+| PACT/09 | Invoice verification and complete CI pilot | Passing source-CI evidence published. Provider OpenAPI and failure-to-fix acceptance pending. | 06, 07, 08 |
+| PACT/10 | Remaining application integrations | Done. [Verified operations and gaps](docs/integrations.md) | 09 |
 | PACT/11 | Report and dependency graph API | Partially implemented: WEB/02 browsing; full source-CI/report acceptance pending | 05, 06, 10 |
 | PACT/12 | Frontend graph and history views | Planned | 11 |
 | WEB/02 | Dashboard browsing/read-model foundation | Implemented; PR verification pending | 05, 06 |
@@ -127,6 +127,10 @@ and registry publication remain PACT/09. PACT/07 cloud acceptance remains indepe
   Do not merge the deliberately breaking demonstration.
 
 ## PACT/10 - Remaining application integrations
+
+The [coverage inventory](docs/integrations.md) links exact consumer publications
+and provider replays for all nine planned integration pairs and records the
+remaining operation-level gaps.
 
 - Cover Invoice -> Products; Web -> Products, Users, Invoice and Payments via BFF;
   Web -> BFF registration; BFF -> Users and Invoice registration gateways.
